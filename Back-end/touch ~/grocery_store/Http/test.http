@@ -1,0 +1,21 @@
+@baseUrl = http://localhost:8000/api
+@token = 6|kAxAt471eOIyYMEwByfeVvLLOYIzR9ucaz475771b811bca6
+GET {{baseUrl}}/sales
+Authorization: Bearer {{token}}
+### 🧾 Obtener ventas (requiere token)
+
+### ❌ Cancelar venta
+POST {{baseUrl}}/sales/1/cancel
+Authorization: Bearer {{token}}
+
+### ↩️ Revertir venta
+POST {{baseUrl}}/sales/1/revert
+Authorization: Bearer {{token}}
+
+POST {{baseUrl}}/login
+Content-Type: application/json
+
+{
+  "email": "yahir@gmail.com",
+  "password": "12345"
+}

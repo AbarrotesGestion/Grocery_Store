@@ -1,32 +1,22 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Api;
 
+use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Sale;
 use App\Models\Product;
-use App\Models\Employee;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
+
 class SaleController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
+    //
+     public function index()
     {
         $sales = Sale::with(['product', 'employee', 'client'])->orderBy('created_at', 'desc')->get();
-        return view('sales.index', compact('sales'));
-    }
-
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        $products = Product::where('stock', '>', 0)->get();
-        return view('sales.create', compact('products'));
+        return response()->json(['message' => 'ventas disponibles', 'data' => $sales], 200);
     }
 
     /**
@@ -46,9 +36,7 @@ class SaleController extends Controller
             $employee = auth()->user()->employee;
             if (!$employee) {
                 DB::rollBack();
-                return redirect()
-                    ->back()
-                    ->with('error', 'No se encontró el empleado asociado al usuario autenticado');
+                return response()->json(['message' => 'No se encontró el empleado asociado al usuario autenticado'], 404);
             }
 
             $product = Product::findOrFail($validated['product_id']);
@@ -56,10 +44,7 @@ class SaleController extends Controller
             // Verificar stock disponible
             if ($product->stock < $validated['quantity']) {
                 DB::rollBack();
-                return redirect()
-                    ->back()
-                    ->with('error', 'No hay suficiente stock para realizar la venta')
-                    ->withInput();
+                return response()->json(['message' => 'No hay suficiente stock para realizar la venta'], 400);
             }
 
             // Registrar la venta
@@ -79,17 +64,12 @@ class SaleController extends Controller
             DB::commit();
             Log::info('Venta registrada exitosamente: ' . $sale->id);
             
-            return redirect()
-                ->route('sales.index')
-                ->with('success', 'Venta registrada exitosamente');
+            return response()->json(['message' => 'Venta registrada exitosamente', 'data' => $sale], 201);
                 
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Error al registrar venta: ' . $e->getMessage());
-            return redirect()
-                ->back()
-                ->with('error', 'Ocurrió un error al registrar la venta: ' . $e->getMessage())
-                ->withInput();
+            return response()->json(['message' => 'Ocurrió un error al registrar la venta: ' . $e->getMessage()], 500);
         }
     }
 
@@ -99,18 +79,9 @@ class SaleController extends Controller
     public function show(string $id)
     {
         $sale = Sale::with(['product', 'employee', 'client'])->findOrFail($id);
-        return view('sales.show', compact('sale'));
+        return response()->json(['message' => 'Venta encontrada', 'data' => $sale], 200);
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(string $id)
-    {
-        $sale = Sale::findOrFail($id);
-        $products = Product::all();
-        return view('sales.edit', compact('sale', 'products'));
-    }
 
     /**
      * Update the specified resource in storage.
@@ -134,10 +105,7 @@ class SaleController extends Controller
             // Verificar stock del nuevo producto
             if ($newProduct->stock < $validated['quantity']) {
                 DB::rollBack();
-                return redirect()
-                    ->back()
-                    ->with('error', 'No hay suficiente stock disponible')
-                    ->withInput();
+                return response()->json(['message' => 'No hay suficiente stock disponible'], 400);
             }
 
             // Descontar stock del nuevo producto
@@ -151,16 +119,11 @@ class SaleController extends Controller
             ]);
 
             DB::commit();
-            return redirect()
-                ->route('sales.index')
-                ->with('success', 'Venta actualizada exitosamente');
+            return response()->json(['message' => 'Venta actualizada exitosamente', 'data' => $sale], 200);
                 
         } catch (\Exception $e) {
             DB::rollBack();
-            return redirect()
-                ->back()
-                ->with('error', 'Error al actualizar la venta: ' . $e->getMessage())
-                ->withInput();
+            return response()->json(['message' => 'Error al actualizar la venta: ' . $e->getMessage()], 500);
         }
     }
 // se agrgan don dunciones en la cula se pueden cancelar la venta y revertir la cancelacion de la venta
@@ -171,9 +134,7 @@ class SaleController extends Controller
         
         // Verificar si ya está cancelada
         if ($sale->isCancelled()) {
-            return redirect()
-                ->back()
-                ->with('warning', 'Esta venta ya está cancelada');
+            return response()->json(['message' => 'Esta venta ya está cancelada'], 400);
         }
 
         DB::beginTransaction();
@@ -182,24 +143,17 @@ class SaleController extends Controller
             if ($sale->cancel()) {
                 DB::commit();
                 Log::info('Venta cancelada: ' . $sale->id);
-                
-                return redirect()
-                    ->route('sales.index')
-                    ->with('success', 'Venta cancelada exitosamente. Stock devuelto al inventario.');
+                return response()->json(['message' => 'Venta cancelada exitosamente. Stock devuelto al inventario.'], 200);
             } else {
                 DB::rollBack();
-                return redirect()
-                    ->back()
-                    ->with('error', 'No se pudo cancelar la venta');
+                return response()->json(['message' => 'No se pudo cancelar la venta'], 400);
             }
             
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Error al cancelar venta: ' . $e->getMessage());
             
-            return redirect()
-                ->back()
-                ->with('error', 'Error al cancelar la venta: ' . $e->getMessage());
+            return response()->json(['message' => 'Error al cancelar la venta: ' . $e->getMessage()], 500);
         }
     }
 
@@ -210,15 +164,13 @@ class SaleController extends Controller
     {
         // Solo administradores pueden revertir
         if (!auth()->user()->isAdmin()) {
-            abort(403, 'No tienes permisos para revertir ventas canceladas');
+        return response()->json(['message' => 'No tienes permisos para revertir ventas canceladas'], 403);
         }
 
         $sale = Sale::findOrFail($id);
         
         if (!$sale->isCancelled()) {
-            return redirect()
-                ->back()
-                ->with('warning', 'Esta venta no está cancelada');
+            return response()->json(['message' => 'Esta venta no está cancelada'], 400);
         }
 
         DB::beginTransaction();
@@ -227,24 +179,17 @@ class SaleController extends Controller
             if ($sale->revert()) {
                 DB::commit();
                 Log::info('Venta revertida: ' . $sale->id);
-                
-                return redirect()
-                    ->route('sales.index')
-                    ->with('success', 'Venta revertida exitosamente. Stock ajustado.');
+                return response()->json(['message' => 'Venta revertida exitosamente. Stock ajustado.'], 200);
             } else {
                 DB::rollBack();
-                return redirect()
-                    ->back()
-                    ->with('error', 'No hay stock suficiente para revertir la cancelación');
+                return response()->json(['message' => 'No hay stock suficiente para revertir la cancelación'], 400);
             }
             
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Error al revertir venta: ' . $e->getMessage());
             
-            return redirect()
-                ->back()
-                ->with('error', 'Error al revertir la venta: ' . $e->getMessage());
+            return response()->json(['message' => 'Error al revertir la venta: ' . $e->getMessage()], 500);
         }
     }
 
@@ -266,15 +211,11 @@ class SaleController extends Controller
             $sale->delete();
 
             DB::commit();
-            return redirect()
-                ->route('sales.index')
-                ->with('success', 'Venta eliminada exitosamente');
+            return response()->json(['message' => 'Venta eliminada exitosamente'], 200);
                 
         } catch (\Exception $e) {
             DB::rollBack();
-            return redirect()
-                ->back()
-                ->with('error', 'Error al eliminar la venta: ' . $e->getMessage());
+            return response()->json(['message' => 'Error al eliminar la venta: ' . $e->getMessage()], 500);
         }
     }
 }
