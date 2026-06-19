@@ -2,6 +2,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AuthController;
 use Illuminate\Http\Request;
+use App\Http\Controllers\Api\InventoryAdjustmentController;
 use App\Http\Controllers\Api\ProductController;
 
 
@@ -31,5 +32,11 @@ Route::middleware(['auth:sanctum', 'role:Almacenista'])->group(function () {
     return response ()->json([
         'message' => ',lista de productos'
     ]);
+
+
 });
+});
+
+Route::middleware(['auth:sanctum', 'role:Almacenista,Administrador'])->group(function () {
+    Route::apiResource('inventory-adjustments', InventoryAdjustmentController::class);
 });

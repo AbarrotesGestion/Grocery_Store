@@ -1,17 +1,64 @@
 @baseUrl = http://localhost:8000/api
-@token = 6|kAxAt471eOIyYMEwByfeVvLLOYIzR9ucaz475771b811bca6
+@token = 9|bPtL3HgdxVhSzFqXe51xnc7VCtVrY6cTEKaARlfRb4424076
+
+
+### 🧾 Obtener ventas (requiere token)
 GET {{baseUrl}}/sales
 Authorization: Bearer {{token}}
-### 🧾 Obtener ventas (requiere token)
 
-###  Cancelar venta
+
+### ❌ Cancelar venta
 POST {{baseUrl}}/sales/1/cancel
 Authorization: Bearer {{token}}
+
 
 ### ↩️ Revertir venta
 POST {{baseUrl}}/sales/1/revert
 Authorization: Bearer {{token}}
 
+
+### 📦 Obtener ajustes de inventario
+GET {{baseUrl}}/inventory-adjustments
+Authorization: Bearer {{token}}
+
+
+### ➕ Crear un ajuste de inventario
+POST {{baseUrl}}/inventory-adjustments
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "product_id": 7,
+  "quantity": 5,
+  "adjustment_type": "addition",
+  "reason": "Reposición de stock"
+}
+
+
+### 🔍 Obtener un ajuste por ID
+GET {{baseUrl}}/inventory-adjustments/3
+Authorization: Bearer {{token}}
+
+
+### ✏️ Actualizar un ajuste
+PUT {{baseUrl}}/inventory-adjustments/6
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "product_id": 6,
+  "quantity": 3,
+  "adjustment_type": "subtraction",
+  "reason": "Corrección de inventario"
+}
+
+
+### 🗑️ Eliminar un ajuste
+DELETE {{baseUrl}}/inventory-adjustments/1
+Authorization: Bearer {{token}}
+
+
+### 🔐 Login (para obtener token)
 POST {{baseUrl}}/login
 Content-Type: application/json
 
