@@ -1,32 +1,31 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Api;
 
+use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Employee;
 use App\Models\User;
 use App\Models\Role;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class EmployeeController extends Controller
 {
+    //
     /**
      * Display a listing of the resource.
      */
     public function index()
     {
         $employees = Employee::with('role')->get();
-        return view('employees.index', compact('employees'));
+        return response()->json($employees);
     }
 
     /**
      * Show the form for creating a new resource.
      */
-    public function create()
-    {
-        $roles = Role::all();
-        return view('employees.create', compact('roles'));
-    }
+
 
     /**
      * Store a newly created resource in storage.
@@ -43,17 +42,18 @@ class EmployeeController extends Controller
             'hourly_rate' => 'required|numeric|min:0.01',
             'card_number' => 'required|string|max:255',
             'role_id' => 'required|exists:roles,id',
+
         ]);
 
         DB::beginTransaction();
+        $temporaryPassword = Str::random(12);
         try {
             // Crear usuario asociado
             $user = User::create([
                 'name' => $validated['first_name'] . ' ' . $validated['last_name'],
                 'email' => $validated['email'],
-                'password' => bcrypt('password'), // Contraseña por defecto
+                'password' => bcrypt($temporaryPassword), // 2. Usar la variable guardada
             ]);
-
             // Crear empleado
             Employee::create([
                 'first_name' => $validated['first_name'],
@@ -66,18 +66,17 @@ class EmployeeController extends Controller
                 'card_number' => $validated['card_number'],
                 'role_id' => $validated['role_id'],
                 'user_id' => $user->id,
+
             ]);
 
             DB::commit();
-            return redirect()
-                ->route('employees.index')
-                ->with('success', 'Empleado creado exitosamente');
+            return response()->json([
+                'message' => 'Empleado creado exitosamente',
+                'temporary_password' => $temporaryPassword, // 3. Devolverla al Admin
+            ], 201);
         } catch (\Exception $e) {
             DB::rollBack();
-            return redirect()
-                ->back()
-                ->with('error', 'Error al crear empleado: ' . $e->getMessage())
-                ->withInput();
+            return response()->json(['error' => 'Error al crear empleado: ' . $e->getMessage()], 400);
         }
     }
 
@@ -87,18 +86,12 @@ class EmployeeController extends Controller
     public function show(string $id)
     {
         $employee = Employee::with('role')->findOrFail($id);
-        return view('employees.show', compact('employee'));
+        return response()->json($employee);
     }
 
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(string $id)
-    {
-        $employee = Employee::findOrFail($id);
-        $roles = Role::all();
-        return view('employees.edit', compact('employee', 'roles'));
-    }
 
     /**
      * Update the specified resource in storage.
@@ -106,7 +99,7 @@ class EmployeeController extends Controller
     public function update(Request $request, string $id)
     {
         $employee = Employee::findOrFail($id);
-        
+
         $validated = $request->validate([
             'first_name' => 'required|string|max:255',
             'last_name' => 'required|string|max:255',
@@ -118,13 +111,20 @@ class EmployeeController extends Controller
             'card_number' => 'required|string|max:255',
             'role_id' => 'required|exists:roles,id',
         ]);
-
+        DB::beginTransaction();
+        try {
+            $employee->user()->update([
+                'name' => $validated['first_name'] . ' ' . $validated['last_name'],
+                'email' => $validated['email'],
+            ]);
         $employee->update($validated);
-        
-        return redirect()
-            ->route('employees.index')
-            ->with('success', 'Empleado actualizado exitosamente');
-            
+
+            DB::commit();
+            return response()->json(['message' => 'Empleado actualizado exitosamente']);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['error' => 'Error al actualizar empleado: ' . $e->getMessage()], 400);
+        }
     }
 
     /**
@@ -133,17 +133,13 @@ class EmployeeController extends Controller
     public function destroy(string $id)
     {
         $employee = Employee::findOrFail($id);
-        
-            $ventasCount = $employee->sales()->count();
-    if ($ventasCount > 0) {
-        return redirect()
-            ->back()
-            ->with('warning', "No se puede eliminar este empleado porque tiene {$ventasCount} venta(s) registrada(s).");
-    }
+
+        $ventasCount = $employee->sales()->count();
+        if ($ventasCount > 0) {
+            return response()->json(['error' => "No se puede eliminar este empleado porque tiene {$ventasCount} venta(s) registrada(s)."], 400);
+        }
         $employee->delete();
-        
-        return redirect()
-            ->route('employees.index')
-            ->with('success', 'Empleado eliminado exitosamente');
+
+        return response()->json(['message' => 'Empleado eliminado exitosamente']);
     }
 }

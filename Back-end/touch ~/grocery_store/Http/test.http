@@ -1,5 +1,5 @@
 @baseUrl = http://localhost:8000/api
-@token = 9|bPtL3HgdxVhSzFqXe51xnc7VCtVrY6cTEKaARlfRb4424076
+@token = 13|pRpy4kZpamKy4MsX6CaJy0n2HRnmVRrUTCH8jpqUc5cc083c
 
 
 ### 🧾 Obtener ventas (requiere token)
@@ -28,25 +28,25 @@ Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
-  "product_id": 7,
-  "quantity": 5,
+  "product_id": 8,
+  "quantity": 45,
   "adjustment_type": "addition",
   "reason": "Reposición de stock"
 }
 
 
 ### 🔍 Obtener un ajuste por ID
-GET {{baseUrl}}/inventory-adjustments/3
+GET {{baseUrl}}/inventory-adjustments/16
 Authorization: Bearer {{token}}
 
 
 ### ✏️ Actualizar un ajuste
-PUT {{baseUrl}}/inventory-adjustments/6
+PUT {{baseUrl}}/inventory-adjustments/16
 Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
-  "product_id": 6,
+  "product_id": 8,
   "quantity": 3,
   "adjustment_type": "subtraction",
   "reason": "Corrección de inventario"
@@ -54,7 +54,7 @@ Content-Type: application/json
 
 
 ### 🗑️ Eliminar un ajuste
-DELETE {{baseUrl}}/inventory-adjustments/1
+DELETE {{baseUrl}}/inventory-adjustments/16
 Authorization: Bearer {{token}}
 
 
