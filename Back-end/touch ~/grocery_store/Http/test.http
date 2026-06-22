@@ -57,7 +57,6 @@ Content-Type: application/json
 DELETE {{baseUrl}}/inventory-adjustments/16
 Authorization: Bearer {{token}}
 
-
 ### 🔐 Login (para obtener token)
 POST {{baseUrl}}/login
 Content-Type: application/json
@@ -66,3 +65,36 @@ Content-Type: application/json
   "email": "yahir@gmail.com",
   "password": "12345"
 }
+
+
+### 📋 Obtener todos los roles
+GET {{baseUrl}}/roles
+Authorization: Bearer {{token}}
+
+
+### ➕ Crear un rol
+POST {{baseUrl}}/roles
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "Supervisor",
+  "description": "Encargado de supervisar operaciones"
+}
+
+
+
+### ✏️ Actualizar un rol
+PUT {{baseUrl}}/roles/4
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "barredor",
+  "description": "Acceso total al sistema"
+}
+
+
+### 🗑️ Eliminar un rol
+DELETE {{baseUrl}}/roles/4
+Authorization: Bearer {{token}}

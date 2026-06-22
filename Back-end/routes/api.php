@@ -5,6 +5,7 @@ use Illuminate\Http\Request;
 use App\Http\Controllers\Api\InventoryAdjustmentController;
 use App\Http\Controllers\Api\ProductController; 
 use App\Http\Controllers\Api\EmployeeController;
+use App\Http\Controllers\Api\RoleController;
 
 Route::get('/test',function(){
     return response ()->json([
@@ -44,4 +45,8 @@ Route::middleware(['auth:sanctum', 'role:Almacenista,Administrador'])->group(fun
 
 Route::middleware(['auth:sanctum', 'role:Administrador'])->group(function () {
     Route::apiResource('employees', EmployeeController::class);
+});
+
+Route::middleware(['auth:sanctum', 'role:Administrador'])->group(function () {
+    Route::apiResource('roles', RoleController::class);
 });
