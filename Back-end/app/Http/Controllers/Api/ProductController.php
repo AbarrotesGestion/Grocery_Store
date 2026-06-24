@@ -1,31 +1,27 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Api;
 
+use App\Http\Controllers\Controller;
+use Illuminate\Http\Request;
 use App\Models\Product;
 use App\Models\Category;
-use Illuminate\Http\Request;
-
 
 class ProductController extends Controller
 {
+    //
     /**
      * Display a listing of the resource.
      */
     public function index()
     {
         $products = Product::with('category')->orderBy('name', 'asc')->get();
-        return view('products.products', compact('products'));
+        return response()->json($products);
     }
 
     /**
      * Show the form for creating a new resource.
      */
-    public function create()
-    {
-        $categories = Category::all();
-        return view('products.createProduct', compact('categories'));
-    }
 
     /**
      * Store a newly created resource in storage.
@@ -39,16 +35,23 @@ class ProductController extends Controller
             'purchase_price' => 'required|numeric|min:0',
             'stock' => 'nullable|integer|min:0',
             'category_id' => 'required|exists:categories,id',
+            'barcode' => 'nullable|string|max:255',
+            'package_size' => 'nullable|integer|min:0',
+            'stock_in_units' => 'nullable|integer|min:0',
+            'price_per_unit' => 'nullable|numeric|min:0',
+            'price_per_package' => 'nullable|numeric|min:0',
+            'allows_unit_sale' => 'nullable|boolean',
+            'allows_package_sale' => 'nullable|boolean',
+            'allows_weight_sale' => 'nullable|boolean',
+            'price_per_kg' => 'nullable|numeric|min:0',
         ]);
 
         // Asegurar que el stock tenga un valor por defecto
         $validated['stock'] = $validated['stock'] ?? 0;
 
-        Product::create($validated);
+        $product = Product::create($validated);
 
-        return redirect()
-            ->route('products.index')
-            ->with('success', 'Producto creado exitosamente');
+        return response()->json($product);
     }
 
     /**
@@ -57,18 +60,12 @@ class ProductController extends Controller
     public function show(string $id)
     {
         $product = Product::with('category')->findOrFail($id);
-        return view('products.show', compact('product'));
+        return response()->json($product);
     }
 
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(string $id)
-    {
-        $product = Product::findOrFail($id);
-        $categories = Category::all();
-        return view('products.edit', compact('product', 'categories'));
-    }
 
     /**
      * Update the specified resource in storage.
@@ -84,13 +81,21 @@ class ProductController extends Controller
             'purchase_price' => 'required|numeric|min:0',
             'stock' => 'nullable|integer|min:0',
             'category_id' => 'required|exists:categories,id',
+            'barcode' => 'nullable|string|max:255',
+            'package_size' => 'nullable|integer|min:0',
+            'stock_in_units' => 'nullable|integer|min:0',
+            'price_per_unit' => 'nullable|numeric|min:0',
+            'price_per_package' => 'nullable|numeric|min:0',
+            'allows_unit_sale' => 'nullable|boolean',
+            'allows_package_sale' => 'nullable|boolean',
+            'allows_weight_sale' => 'nullable|boolean',
+
+            'price_per_kg' => 'nullable|numeric|min:0',
         ]);
 
         $product->update($validated);
 
-        return redirect()
-            ->route('products.index')
-            ->with('success', 'Producto actualizado exitosamente');
+        return response()->json(['message' => 'Producto actualizado exitosamente']);
     }
 
     /**
@@ -105,26 +110,14 @@ class ProductController extends Controller
             $ventasCount = $product->sales()->count();
 
             if ($ventasCount > 0) {
-                return redirect()
-                    ->back()
-                    ->with('warning', "No se puede eliminar: tiene {$ventasCount} ventas.");
+                return response()->json(['error' => "No se puede eliminar: tiene {$ventasCount} ventas."], 400);
             }
 
-            // ELIMINAR
-            $result = $product->delete();
-
-            // Verificar después
-            $product->refresh();
-
-
-            return redirect()
-                ->route('products.index')
-                ->with('success', 'Producto eliminado correctamente');
+            $product->delete();
+            return response()->json(['message' => 'Producto eliminado correctamente']);
         } catch (\Exception $e) {
 
-            return redirect()
-                ->back()
-                ->with('error', 'Error al eliminar: ' . $e->getMessage());
+            return response()->json(['error' => 'Error al eliminar: ' . $e->getMessage()], 500);
         }
     }
 
@@ -136,7 +129,7 @@ class ProductController extends Controller
             ->orderBy('deleted_at', 'desc')
             ->get();
 
-        return view('products.trashed', compact('products'));
+        return response()->json($products);
     }
     // este es para restaurar un producto eliminado
     public function restore(string $id)
@@ -144,33 +137,29 @@ class ProductController extends Controller
         $product = Product::onlyTrashed()->findOrFail($id);
         $product->restore();
 
-        return redirect()
-            ->route('products.index')
-            ->with('success', 'Producto restaurado exitosamente');
+        return response()->json(['message' => 'Producto restaurado exitosamente']);
     }
 
     //este solo es borrar pernamente si es que el producto deja de existir 
     public function forceDelete(string $id)
     {
         // Solo administradores pueden eliminar permanentemente
-        if (!auth()->user()->isAdmin()) {
-            abort(403, 'No tienes permisos para eliminar permanentemente productos');
+        if (!auth()->check() || !auth()->user()->isAdmin()) {
+            return response()->json([
+                'error' => 'No tienes permisos para eliminar permanentemente productos'
+            ], 403);
         }
 
         $product = Product::onlyTrashed()->findOrFail($id);
 
         // Verificar que no tenga ventas
         if ($product->sales()->count() > 0) {
-            return redirect()
-                ->back()
-                ->with('error', 'No se puede eliminar permanentemente porque tiene ventas registradas.');
+            return response()->json(['error' => 'No se puede eliminar permanentemente porque tiene ventas registradas.'], 400);
         }
 
         // Eliminar PERMANENTEMENTE (se borra de la BD)
         $product->forceDelete();
 
-        return redirect()
-            ->route('products.trashed')
-            ->with('success', 'Producto eliminado permanentemente de la base de datos');
+        return response()->json(['message' => 'Producto eliminado permanentemente de la base de datos']);
     }
 }

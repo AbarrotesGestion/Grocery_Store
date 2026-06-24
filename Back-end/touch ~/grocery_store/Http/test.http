@@ -98,3 +98,87 @@ Content-Type: application/json
 ### 🗑️ Eliminar un rol
 DELETE {{baseUrl}}/roles/4
 Authorization: Bearer {{token}}
+
+
+### 📋 Obtener todos los productos
+GET {{baseUrl}}/products
+Authorization: Bearer {{token}}
+
+
+### ➕ Crear un producto
+POST {{baseUrl}}/products
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "name": "Coca Cola 600ml",
+  "description": "Refresco sabor cola",
+  "price": 18.50,
+  "purchase_price": 12.00,
+  "stock": 50,
+  "category_id": 1,
+  "barcode": "7501234345467890",
+  "package_size": 1,
+  "stock_in_units": 50,
+  "price_per_unit": 18.50,
+  "price_per_package": 18.50,
+  "allows_unit_sale": true,
+  "allows_package_sale": false,
+  "allows_weight_sale": false,
+  "price_per_kg": 0
+}
+
+
+### 🔍 Obtener un producto por ID
+GET {{baseUrl}}/products/18
+Authorization: Bearer {{token}}
+
+
+### ✏️ Actualizar un producto
+PUT {{baseUrl}}/products/17
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "name": "Coca Cola 600ml",
+  "description": "Refresco sabor cola (actualizado)",
+  "price": 19.00,
+  "purchase_price": 12.00,
+  "stock": 60,
+  "category_id": 1,
+  "barcode": "750123457686588770",
+  "package_size": 1,
+  "stock_in_units": 60,
+  "price_per_unit": 19.00,
+  "price_per_package": 19.00,
+  "allows_unit_sale": true,
+  "allows_package_sale": false,
+  "allows_weight_sale": false,
+  "price_per_kg": 0
+}
+
+
+### 🗑️ Eliminar un producto (borrado lógico)
+DELETE {{baseUrl}}/products/17
+Authorization: Bearer {{token}}
+
+
+### 🗂️ Obtener productos eliminados (papelera)
+GET {{baseUrl}}/products/trashed
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json
+
+
+### 🔄 Restaurar un producto eliminado
+POST {{baseUrl}}/products/17/restore
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json
+
+
+### ☠️ Eliminar permanentemente (solo Admin)
+DELETE {{baseUrl}}/products/1/force
+Authorization: Bearer {{token}}

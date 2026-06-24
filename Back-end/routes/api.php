@@ -3,7 +3,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AuthController;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Api\InventoryAdjustmentController;
-use App\Http\Controllers\Api\ProductController; 
+use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\EmployeeController;
 use App\Http\Controllers\Api\RoleController;
 
@@ -50,3 +50,12 @@ Route::middleware(['auth:sanctum', 'role:Administrador'])->group(function () {
 Route::middleware(['auth:sanctum', 'role:Administrador'])->group(function () {
     Route::apiResource('roles', RoleController::class);
 });
+
+Route::middleware(['auth:sanctum', 'role:Almacenista,Administrador,Cajero'])->group(function () {
+ Route::get('products/trashed', [ProductController::class, 'trashed']);
+    Route::post('products/{id}/restore', [ProductController::class, 'restore']);
+    Route::delete('products/{id}/force-delete', [ProductController::class, 'forceDelete']);
+    Route::apiResource('products', ProductController::class);
+});
+
+
