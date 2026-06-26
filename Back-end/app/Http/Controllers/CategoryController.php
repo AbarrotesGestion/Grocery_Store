@@ -13,16 +13,14 @@ class CategoryController extends Controller
     public function index()
     {
         $categories = Category::withCount('products')->orderBy('name', 'asc')->get();
-        return view('categories.index', compact('categories'));
+        
+        return response()->json(['message' => 'Categorías obtenidas exitosamente', 'data' => $categories], 200);
     }
 
     /**
      * Show the form for creating a new resource.
      */
- public function create()
-{
-    return view('categories.create');
-}
+
 
     /**
      * Store a newly created resource in storage.
@@ -36,9 +34,7 @@ class CategoryController extends Controller
 
         Category::create($validated);
         
-        return redirect()
-            ->route('categories.index')
-            ->with('success', 'Categoría creada exitosamente');
+        return response()->json(['message' => 'Categoría creada exitosamente', 'data' => $validated], 201);
     }
 
     /**
@@ -47,7 +43,7 @@ class CategoryController extends Controller
     public function show(string $id)
     {
         $category = Category::with('products')->findOrFail($id);
-        return view('categories.show', compact('category'));
+        return response()->json(['message' => 'Categoría obtenida exitosamente', 'data' => $category], 200);
     }
 
     /**
@@ -56,7 +52,7 @@ class CategoryController extends Controller
     public function edit(string $id)
     {
         $category = Category::findOrFail($id);
-        return view('categories.edit', compact('category'));
+        return response()->json(['message' => 'Categoría obtenida exitosamente', 'data' => $category], 200);
     }
 
     /**
@@ -73,9 +69,7 @@ class CategoryController extends Controller
 
         $category->update($validated);
         
-        return redirect()
-            ->route('categories.index')
-            ->with('success', 'Categoría actualizada exitosamente');
+        return response()->json(['message' => 'Categoría actualizada exitosamente', 'data' => $category], 200);
     }
 
     /**
@@ -87,15 +81,11 @@ class CategoryController extends Controller
         
         // Verificar si la categoría tiene productos asociados
         if ($category->products()->exists()) {
-            return redirect()
-                ->back()
-                ->with('error', 'No se puede eliminar la categoría porque tiene productos asociados');
+            return response()->json(['message' => 'No se puede eliminar la categoría porque tiene productos asociados'], 400);
         }
         
         $category->delete();
         
-        return redirect()
-            ->route('categories.index')
-            ->with('success', 'Categoría eliminada exitosamente');
+        return response()->json(['message' => 'Categoría eliminada exitosamente'], 200);
     }
 }
