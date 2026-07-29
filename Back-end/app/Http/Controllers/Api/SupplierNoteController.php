@@ -8,6 +8,7 @@ use App\Models\SupplierNote;
 use App\Models\SupplierNoteDetail;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use App\Models\Product;
 
 class SupplierNoteController extends Controller
@@ -147,8 +148,8 @@ class SupplierNoteController extends Controller
 
 
     public function scan(Request $request)
-    {
-        $request->validate([
+{
+    $request->validate([
         'image' => 'required|image|mimes:jpg,jpeg,png,webp|max:10240',
     ]);
 
@@ -159,7 +160,7 @@ class SupplierNoteController extends Controller
 
         $apiKey = config('services.gemini.key');
 
-        $response = Http::post("https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={$apiKey}", [
+        $response = Http::post("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key={$apiKey}", [
             'contents' => [[
                 'parts' => [
                     ['inline_data' => ['mime_type' => $mimeType, 'data' => $imageData]],
@@ -168,8 +169,22 @@ class SupplierNoteController extends Controller
             ]]
         ]);
 
+        // Texto crudo de Gemini
         $text = $response->json('candidates.0.content.parts.0.text');
-        $products = json_decode($text, true);
+
+        // Log completo de la respuesta
+        \Log::info('Respuesta Gemini:', [
+            'response' => $response->json(),
+            'text' => $text
+        ]);
+
+        // 🔧 Limpieza de markdown que Gemini agrega a veces
+        $clean = preg_replace('/```json\s*/i', '', $text);
+        $clean = preg_replace('/```\s*/i', '', $clean);
+        $clean = trim($clean);
+
+        // Intentar decodificar
+        $products = json_decode($clean, true);
 
         return response()->json([
             'message' => 'Productos extraídos del ticket',
@@ -181,8 +196,8 @@ class SupplierNoteController extends Controller
             'message' => 'Error al procesar la imagen: ' . $e->getMessage()
         ], 500);
     }
+}
 
-    }
 
 
 

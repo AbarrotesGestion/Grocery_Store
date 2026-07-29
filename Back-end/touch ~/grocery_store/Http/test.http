@@ -182,3 +182,15 @@ Accept: application/json
 ### ☠️ Eliminar permanentemente (solo Admin)
 DELETE {{baseUrl}}/products/1/force
 Authorization: Bearer {{token}}
+
+### 📷 Escanear ticket con Gemini
+POST {{baseUrl}}/supplier-notes/1/scan
+Authorization: Bearer {{token}}
+Content-Type: multipart/form-data; boundary=boundary
+
+--boundary
+Content-Disposition: form-data; name="image"; filename="ticket.jpg"
+Content-Type: image/jpeg
+
+< ./ticket.jpeg
+--boundary--
