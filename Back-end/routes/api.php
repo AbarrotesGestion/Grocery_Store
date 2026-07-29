@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\SupplierController;
 use App\Http\Controllers\Api\SupplierDebtController;
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\Api\CashRegisterController;
 
 
 // Test básico
@@ -91,4 +92,13 @@ Route::middleware(['auth:sanctum', 'role:Administrador'])->group(function () {
     Route::get('dashboard/reportes/productos', [DashboardController::class, 'reporteProductos']);
     Route::get('dashboard/reportes/clientes', [DashboardController::class, 'reporteClientes']);
     Route::get('dashboard/reportes/deudas', [DashboardController::class, 'reporteDeudas']);
+});
+
+//corte de caja
+Route::middleware(['auth:sanctum', 'role:Cajero,Administrador'])->group(function () {
+    Route::get('cash-registers/active', [CashRegisterController::class, 'active']);
+    Route::post('cash-registers/open', [CashRegisterController::class, 'open']);
+    Route::get('cash-registers', [CashRegisterController::class, 'index']);
+    Route::get('cash-registers/{id}', [CashRegisterController::class, 'show']);
+    Route::post('cash-registers/{id}/close', [CashRegisterController::class, 'close']);
 });
