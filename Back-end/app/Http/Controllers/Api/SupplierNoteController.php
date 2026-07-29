@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use App\Models\SupplierNote;
 use App\Models\SupplierNoteDetail;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use App\Models\Product;
 
 class SupplierNoteController extends Controller
@@ -110,61 +111,92 @@ class SupplierNoteController extends Controller
         ], 200);
     }
 
-public function confirm($id)
-{
-    $employee = auth()->user()->employee;
-    if (!$employee) {
-        return response()->json(['message' => 'Empleado no encontrado'], 404);
-    }
-
-    $note = SupplierNote::with('details.product')->findOrFail($id);
-
-    if ($note->status !== 'pending') {
-        return response()->json(['message' => 'Solo se pueden confirmar notas pendientes'], 400);
-    }
-
-    DB::beginTransaction();
-    try {
-        // Actualizar stock de cada producto
-        foreach ($note->details as $detail) {
-            $detail->product->increment('stock', $detail->quantity_agreed);
+    public function confirm($id)
+    {
+        $employee = auth()->user()->employee;
+        if (!$employee) {
+            return response()->json(['message' => 'Empleado no encontrado'], 404);
         }
 
-        $note->update([
-            'status' => 'confirmed',
-            'confirmed_by' => $employee->id,
+        $note = SupplierNote::with('details.product')->findOrFail($id);
+
+        if ($note->status !== 'pending') {
+            return response()->json(['message' => 'Solo se pueden confirmar notas pendientes'], 400);
+        }
+
+        DB::beginTransaction();
+        try {
+            // Actualizar stock de cada producto
+            foreach ($note->details as $detail) {
+                $detail->product->increment('stock', $detail->quantity_agreed);
+            }
+
+            $note->update([
+                'status' => 'confirmed',
+                'confirmed_by' => $employee->id,
+            ]);
+
+            DB::commit();
+            return response()->json(['message' => 'Nota confirmada y stock actualizado', 'data' => $note], 200);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
+
+
+
+    public function scan(Request $request)
+    {
+        $request->validate([
+        'image' => 'required|image|mimes:jpg,jpeg,png,webp|max:10240',
+    ]);
+
+    try {
+        $image = $request->file('image');
+        $imageData = base64_encode(file_get_contents($image->getRealPath()));
+        $mimeType = $image->getMimeType();
+
+        $apiKey = config('services.gemini.key');
+
+        $response = Http::post("https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={$apiKey}", [
+            'contents' => [[
+                'parts' => [
+                    ['inline_data' => ['mime_type' => $mimeType, 'data' => $imageData]],
+                    ['text' => 'Analiza este ticket de proveedor y extrae todos los productos. Devuelve SOLO un array JSON con los campos: nombre, cantidad, precio_unitario. Sin texto adicional, sin markdown, solo el JSON.']
+                ]
+            ]]
         ]);
 
-        DB::commit();
-        return response()->json(['message' => 'Nota confirmada y stock actualizado', 'data' => $note], 200);
-    } catch (\Exception $e) {
-        DB::rollBack();
-        return response()->json(['error' => $e->getMessage()], 500);
-    }
-}
+        $text = $response->json('candidates.0.content.parts.0.text');
+        $products = json_decode($text, true);
 
-
-    public function scan()
-    {
-
-        $notes = SupplierNote::with(['supplier', 'details.product', 'createdBy', 'confirmedBy'])->get();
         return response()->json([
-            'data' => $notes
+            'message' => 'Productos extraídos del ticket',
+            'products' => $products
         ], 200);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'message' => 'Error al procesar la imagen: ' . $e->getMessage()
+        ], 500);
+    }
+
     }
 
 
-public function pay($id)
-{
-    $note = SupplierNote::findOrFail($id);
 
-    if ($note->status !== 'confirmed') {
-        return response()->json(['message' => 'Solo se pueden pagar notas confirmadas'], 400);
+
+    public function pay($id)
+    {
+        $note = SupplierNote::findOrFail($id);
+
+        if ($note->status !== 'confirmed') {
+            return response()->json(['message' => 'Solo se pueden pagar notas confirmadas'], 400);
+        }
+
+        $note->update(['status' => 'paid']);
+
+        return response()->json(['message' => 'Nota marcada como pagada', 'data' => $note], 200);
     }
-
-    $note->update(['status' => 'paid']);
-
-    return response()->json(['message' => 'Nota marcada como pagada', 'data' => $note], 200);
-}
-
 }
