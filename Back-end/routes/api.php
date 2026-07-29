@@ -102,3 +102,17 @@ Route::middleware(['auth:sanctum', 'role:Cajero,Administrador'])->group(function
     Route::get('cash-registers/{id}', [CashRegisterController::class, 'show']);
     Route::post('cash-registers/{id}/close', [CashRegisterController::class, 'close']);
 });
+
+
+use App\Http\Controllers\Api\SupplierNoteController;
+
+Route::middleware(['auth:sanctum', 'role:Administrador,Almacenista,Cajero'])->group(function () {
+    Route::get('supplier-notes', [SupplierNoteController::class, 'index']);
+    Route::get('supplier-notes/{id}', [SupplierNoteController::class, 'show']);
+    Route::post('supplier-notes', [SupplierNoteController::class, 'store']);
+    Route::put('supplier-notes/{id}', [SupplierNoteController::class, 'update']);
+    Route::delete('supplier-notes/{id}', [SupplierNoteController::class, 'destroy']);
+    Route::post('supplier-notes/{id}/scan', [SupplierNoteController::class, 'scan']);
+    Route::put('supplier-notes/{id}/confirm', [SupplierNoteController::class, 'confirm']);
+    Route::put('supplier-notes/{id}/pay', [SupplierNoteController::class, 'pay']);
+});
