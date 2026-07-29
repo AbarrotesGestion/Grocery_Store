@@ -7,7 +7,7 @@ use Illuminate\Http\Request;
 use App\Models\SupplierDebt;
 use App\Models\Supplier;
 
-class SupplierDebtController extends Controller
+class SupplierController extends Controller
 {
     /**
      * Display a listing of the resource.
@@ -15,16 +15,16 @@ class SupplierDebtController extends Controller
 public function index()
     {
         $suppliers = Supplier::orderBy('company_name', 'asc')->get();
-        return view('suppliers.index', compact('suppliers'));
+        return response()->json([
+            'message' => 'Lista de proveedores',
+            'data' => $suppliers
+        ], 200);
     }
 
     /**
      * Show the form for creating a new resource.
      */
-    public function create()
-    {
-        return view('suppliers.create');
-    }
+
 
     /**
      * Store a newly created resource in storage.
@@ -39,10 +39,10 @@ public function index()
         ]);
 
         Supplier::create($validated);
-        
-        return redirect()
-            ->route('suppliers.index')
-            ->with('success', 'Proveedor creado exitosamente');
+        return response()->json([
+            'message' => 'Proveedor creado exitosamente',
+            'data' => $validated
+        ], 201);
     }
 
     /**
@@ -51,17 +51,16 @@ public function index()
     public function show(string $id)
     {
         $supplier = Supplier::with('debts')->findOrFail($id);
-        return view('suppliers.show', compact('supplier'));
+        return response()->json([
+            'message' => 'Proveedor encontrado',
+            'data' => $supplier
+        ], 200);
     }
 
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(string $id)
-    {
-        $supplier = Supplier::findOrFail($id);
-        return view('suppliers.edit', compact('supplier'));
-    }
+
 
     /**
      * Update the specified resource in storage.
@@ -79,9 +78,10 @@ public function index()
 
         $supplier->update($validated);
         
-        return redirect()
-            ->route('suppliers.index')
-            ->with('success', 'Proveedor actualizado exitosamente');
+        return response()->json([
+            'message' => 'Proveedor actualizado exitosamente',
+            'data' => $supplier
+        ], 200);
     }
 
     /**
@@ -94,15 +94,16 @@ public function index()
         
         // Verificar si el proveedor tiene deudas pendientes
         if ($supplier->debts()->whereIn('status', ['pending', 'overdue'])->exists()) {
-            return redirect()
-                ->back()
-                ->with('error', 'No se puede eliminar el proveedor porque tiene deudas pendientes');
+            return response()->json([
+                'message' => 'No se puede eliminar el proveedor porque tiene deudas pendientes',
+            ], 400);
         }
         
         $supplier->delete();
-        
-        return redirect()
-            ->route('suppliers.index')
-            ->with('success', 'Proveedor eliminado exitosamente');
+        return response()->json([
+            'message' => 'Proveedor eliminado exitosamente',
+            'data' => $supplier
+        ], 200);
+
     }
 }
