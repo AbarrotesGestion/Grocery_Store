@@ -16,6 +16,8 @@ use App\Http\Controllers\Api\SupplierDebtController;
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\CashRegisterController;
+use App\Http\Controllers\Api\SupplierNoteController;
+use App\Http\Controllers\Api\ProviderFundController;
 
 
 // Test básico
@@ -104,7 +106,6 @@ Route::middleware(['auth:sanctum', 'role:Cajero,Administrador'])->group(function
 });
 
 
-use App\Http\Controllers\Api\SupplierNoteController;
 
 Route::middleware(['auth:sanctum', 'role:Administrador,Almacenista,Cajero'])->group(function () {
     Route::get('supplier-notes', [SupplierNoteController::class, 'index']);
@@ -115,4 +116,11 @@ Route::middleware(['auth:sanctum', 'role:Administrador,Almacenista,Cajero'])->gr
     Route::post('supplier-notes/{id}/scan', [SupplierNoteController::class, 'scan']);
     Route::put('supplier-notes/{id}/confirm', [SupplierNoteController::class, 'confirm']);
     Route::put('supplier-notes/{id}/pay', [SupplierNoteController::class, 'pay']);
+});
+
+Route::middleware(['auth:sanctum', 'role:Administrador,Almacenista'])->group(function () {
+    Route::get('provider-funds', [ProviderFundController::class, 'index']);
+    Route::get('provider-funds/{id}', [ProviderFundController::class, 'show']);
+    Route::put('provider-funds/{id}', [ProviderFundController::class, 'update']);
+    Route::post('provider-funds/{id}/extract', [ProviderFundController::class, 'extract']);
 });
