@@ -1,63 +1,12 @@
 @baseUrl = http://localhost:8000/api
-@token = 13|pRpy4kZpamKy4MsX6CaJy0n2HRnmVRrUTCH8jpqUc5cc083c
+@token = 14|CKz8rwGLlTmnLeAGdBnzRigEcRZz93uAeyVjWD2m2f010c38
 
 
-### 🧾 Obtener ventas (requiere token)
-GET {{baseUrl}}/sales
-Authorization: Bearer {{token}}
+### ============================================================
+### 🔐 AUTH
+### ============================================================
 
-
-### ❌ Cancelar venta
-POST {{baseUrl}}/sales/1/cancel
-Authorization: Bearer {{token}}
-
-
-### ↩️ Revertir venta
-POST {{baseUrl}}/sales/1/revert
-Authorization: Bearer {{token}}
-
-
-### 📦 Obtener ajustes de inventario
-GET {{baseUrl}}/inventory-adjustments
-Authorization: Bearer {{token}}
-
-
-### ➕ Crear un ajuste de inventario
-POST {{baseUrl}}/inventory-adjustments
-Authorization: Bearer {{token}}
-Content-Type: application/json
-
-{
-  "product_id": 8,
-  "quantity": 45,
-  "adjustment_type": "addition",
-  "reason": "Reposición de stock"
-}
-
-
-### 🔍 Obtener un ajuste por ID
-GET {{baseUrl}}/inventory-adjustments/16
-Authorization: Bearer {{token}}
-
-
-### ✏️ Actualizar un ajuste
-PUT {{baseUrl}}/inventory-adjustments/16
-Authorization: Bearer {{token}}
-Content-Type: application/json
-
-{
-  "product_id": 8,
-  "quantity": 3,
-  "adjustment_type": "subtraction",
-  "reason": "Corrección de inventario"
-}
-
-
-### 🗑️ Eliminar un ajuste
-DELETE {{baseUrl}}/inventory-adjustments/16
-Authorization: Bearer {{token}}
-
-### 🔐 Login (para obtener token)
+### Login (para obtener token)
 POST {{baseUrl}}/login
 Content-Type: application/json
 
@@ -66,46 +15,20 @@ Content-Type: application/json
   "password": "12345"
 }
 
-
-### 📋 Obtener todos los roles
-GET {{baseUrl}}/roles
+### Usuario autenticado
+GET {{baseUrl}}/me
 Authorization: Bearer {{token}}
 
 
-### ➕ Crear un rol
-POST {{baseUrl}}/roles
-Authorization: Bearer {{token}}
-Content-Type: application/json
+### ============================================================
+### 📦 PRODUCTS
+### ============================================================
 
-{
-  "name": "Supervisor",
-  "description": "Encargado de supervisar operaciones"
-}
-
-
-
-### ✏️ Actualizar un rol
-PUT {{baseUrl}}/roles/4
-Authorization: Bearer {{token}}
-Content-Type: application/json
-
-{
-  "name": "barredor",
-  "description": "Acceso total al sistema"
-}
-
-
-### 🗑️ Eliminar un rol
-DELETE {{baseUrl}}/roles/4
-Authorization: Bearer {{token}}
-
-
-### 📋 Obtener todos los productos
+### Obtener todos los productos
 GET {{baseUrl}}/products
 Authorization: Bearer {{token}}
 
-
-### ➕ Crear un producto
+### Crear un producto
 POST {{baseUrl}}/products
 Authorization: Bearer {{token}}
 Content-Type: application/json
@@ -118,7 +41,7 @@ Accept: application/json
   "purchase_price": 12.00,
   "stock": 50,
   "category_id": 1,
-  "barcode": "7501234345467890",
+  "barcode": "750343534345467890",
   "package_size": 1,
   "stock_in_units": 50,
   "price_per_unit": 18.50,
@@ -129,14 +52,12 @@ Accept: application/json
   "price_per_kg": 0
 }
 
-
-### 🔍 Obtener un producto por ID
-GET {{baseUrl}}/products/18
+### Obtener un producto por ID
+GET {{baseUrl}}/products/20
 Authorization: Bearer {{token}}
 
-
-### ✏️ Actualizar un producto
-PUT {{baseUrl}}/products/17
+### Actualizar un producto
+PUT {{baseUrl}}/products/20
 Authorization: Bearer {{token}}
 Content-Type: application/json
 Accept: application/json
@@ -148,7 +69,7 @@ Accept: application/json
   "purchase_price": 12.00,
   "stock": 60,
   "category_id": 1,
-  "barcode": "750123457686588770",
+  "barcode": "454343534345467890",
   "package_size": 1,
   "stock_in_units": 60,
   "price_per_unit": 19.00,
@@ -159,31 +80,494 @@ Accept: application/json
   "price_per_kg": 0
 }
 
-
-### 🗑️ Eliminar un producto (borrado lógico)
-DELETE {{baseUrl}}/products/17
+### Eliminar un producto (borrado lógico)
+DELETE {{baseUrl}}/products/20
 Authorization: Bearer {{token}}
 
-
-### 🗂️ Obtener productos eliminados (papelera)
+### Obtener productos eliminados (papelera)
 GET {{baseUrl}}/products/trashed
 Authorization: Bearer {{token}}
-Content-Type: application/json
+Accept: application/json
+
+### Restaurar un producto eliminado
+POST {{baseUrl}}/products/20/restore
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### Eliminar permanentemente (solo Admin)
+### ⚠️ OJO: tu ruta real es /force-delete, no /force — revisa api.php
+DELETE {{baseUrl}}/products/20/force-delete
+Authorization: Bearer {{token}}
 Accept: application/json
 
 
-### 🔄 Restaurar un producto eliminado
-POST {{baseUrl}}/products/17/restore
+### ============================================================
+### 🗂️ CATEGORIES
+### ============================================================
+
+### Obtener todas las categorías
+GET {{baseUrl}}/categories
+Authorization: Bearer {{token}}
+
+### Crear una categoría
+POST {{baseUrl}}/categories
 Authorization: Bearer {{token}}
 Content-Type: application/json
 Accept: application/json
 
+{
+  "name": "Snacks",
+  "description": "Botanas y frituras"
+}
 
-### ☠️ Eliminar permanentemente (solo Admin)
-DELETE {{baseUrl}}/products/1/force
+### Obtener una categoría por ID
+GET {{baseUrl}}/categories/11
 Authorization: Bearer {{token}}
 
-### 📷 Escanear ticket con Gemini
+### Actualizar una categoría
+PUT {{baseUrl}}/categories/11
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "name": "escobas y trapeadores",
+  "description": "Productos básicos actualizados"
+}
+
+### Eliminar una categoría
+DELETE {{baseUrl}}/categories/11
+Authorization: Bearer {{token}}
+Accept: application/json
+
+
+### ============================================================
+### 🧾 SALES
+### ============================================================
+
+### Obtener ventas
+GET {{baseUrl}}/sales
+Authorization: Bearer {{token}}
+
+### Crear una venta
+POST {{baseUrl}}/sales
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "product_id": 6,
+  "quantity": 2,
+  "client_id": null
+}
+
+### Ver una venta
+GET {{baseUrl}}/sales/12
+Authorization: Bearer {{token}}
+
+### Actualizar una venta
+PUT {{baseUrl}}/sales/12
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "product_id": 6,
+  "quantity": 3
+}
+
+### Eliminar una venta
+DELETE {{baseUrl}}/sales/12
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### Cancelar venta
+POST {{baseUrl}}/sales/12/cancel
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### Revertir cancelación
+POST {{baseUrl}}/sales/12/revert
+Authorization: Bearer {{token}}
+Accept: application/json
+
+
+### ============================================================
+### 📊 INVENTORY ADJUSTMENTS
+### ============================================================
+
+### Obtener ajustes de inventario
+GET {{baseUrl}}/inventory-adjustments
+Authorization: Bearer {{token}}
+
+### Crear un ajuste de inventario
+POST {{baseUrl}}/inventory-adjustments
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "product_id": 8,
+  "quantity": 45,
+  "adjustment_type": "addition",
+  "reason": "Reposición de stock"
+}
+
+### Obtener un ajuste por ID
+GET {{baseUrl}}/inventory-adjustments/18
+Authorization: Bearer {{token}}
+
+### Actualizar un ajuste
+PUT {{baseUrl}}/inventory-adjustments/18
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "product_id": 8,
+  "quantity": 3,
+  "adjustment_type": "subtraction",
+  "reason": "Corrección de inventario"
+}
+
+### Eliminar un ajuste
+DELETE {{baseUrl}}/inventory-adjustments/18
+Authorization: Bearer {{token}}
+Accept: application/json
+
+
+### ============================================================
+### 👷 EMPLOYEES
+### ============================================================
+
+### Obtener todos los empleados
+GET {{baseUrl}}/employees
+Authorization: Bearer {{token}}
+
+### Crear un empleado
+POST {{baseUrl}}/employees
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "first_name": "Anónima",
+  "last_name": "López",
+  "email": "Anónima.lopez12@tienda.com",
+  "phone": "3312345678",
+  "full_address": "Calle Falsa 123",
+  "payroll_id": "EMP-011",
+  "hourly_rate": 75.00,
+  "card_number": "1234567890123456",
+  "role_id": 2
+}
+
+### Ver un empleado
+GET {{baseUrl}}/employees/8
+Authorization: Bearer {{token}}
+
+### Actualizar un empleado
+PUT {{baseUrl}}/employees/8
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "first_name": "Ana Maria",
+  "last_name": "gutierres",
+  "email": "ana.lopez@tienda.com",
+  "phone": "3312345678",
+  "full_address": "Calle Falsa 123",
+  "payroll_id": "EMP-010",
+  "hourly_rate": 80.00,
+  "card_number": "1234567890123456",
+  "role_id": 2
+}
+
+### Eliminar un empleado
+DELETE {{baseUrl}}/employees/8
+Authorization: Bearer {{token}}
+Accept: application/json
+
+
+### ============================================================
+### 🛡️ ROLES
+### ============================================================
+
+### Obtener todos los roles
+GET {{baseUrl}}/roles
+Authorization: Bearer {{token}}
+
+### Crear un rol
+POST {{baseUrl}}/roles
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "name": "Supervisor1",
+  "description": "Encargado de supervisar operaciones"
+}
+
+### Actualizar un rol
+PUT {{baseUrl}}/roles/7
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "name": "Supervisor123",
+  "description": "Realizar ventas y gestionar clientes"
+}
+
+### Eliminar un rol
+DELETE {{baseUrl}}/roles/7
+Authorization: Bearer {{token}}
+Accept: application/json
+
+
+### ============================================================
+### 🧑‍🤝‍🧑 CLIENTS
+### ============================================================
+
+### Obtener todos los clientes
+GET {{baseUrl}}/clients
+Authorization: Bearer {{token}}
+
+### Crear un cliente
+POST {{baseUrl}}/clients
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "first_name": "Carlos",
+  "last_name": "Ramirez",
+  "email": "carlos.ramirez123@email.com",
+  "phone": "3319998888",
+  "street_1": "Av. Vallarta 1500",
+  "street_2": null,
+  "neighborhood": "Americana"
+}
+
+### Ver un cliente
+GET {{baseUrl}}/clients/13
+Authorization: Bearer {{token}}
+
+### Actualizar un cliente
+PUT {{baseUrl}}/clients/13
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "first_name": "Carlos",
+  "last_name": "Ramirez",
+  "email": "carlos.ramirez123@email.com",
+  "phone": "3319998888",
+  "street_1": "Av. Vallarta 1500",
+  "street_2": "Av. Vallarta 1500",
+  "neighborhood": "Americana"
+}
+
+### Eliminar un cliente
+DELETE {{baseUrl}}/clients/13
+Authorization: Bearer {{token}}
+Accept: application/json
+
+
+### ============================================================
+### 💳 CLIENT DEBTS
+### ============================================================
+
+### Obtener deudas de clientes
+GET {{baseUrl}}/client-debts
+Authorization: Bearer {{token}}
+
+### Crear una deuda de cliente
+POST {{baseUrl}}/client-debts
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "client_id": 1,
+  "sale_id": null,
+  "start_date": "2026-08-01",
+  "due_date": "2026-08-15",
+  "balance_due": 160.00,
+  "status": "pending"
+}
+
+### Ver una deuda
+GET {{baseUrl}}/client-debts/1
+Authorization: Bearer {{token}}
+
+### Actualizar una deuda
+PUT {{baseUrl}}/client-debts/1
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "client_id": 1,
+  "sale_id": null,
+  "start_date": "2026-08-01",
+  "due_date": "2026-08-15",
+  "balance_due": 150.00,
+  "status": "paid"
+}
+
+### Eliminar una deuda
+DELETE {{baseUrl}}/client-debts/1
+Authorization: Bearer {{token}}
+Accept: application/json
+
+
+### ============================================================
+### 🏭 SUPPLIERS
+### ============================================================
+
+### Obtener todos los proveedores
+GET {{baseUrl}}/suppliers
+Authorization: Bearer {{token}}
+
+### Crear un proveedor
+POST {{baseUrl}}/suppliers
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "company_name": "Distribuidora XYZ",
+  "contact_name": "Roberto Sánchez",
+  "phone": "3311112222",
+  "email": "contacto@xyz.mx"
+}
+
+### Ver un proveedor
+GET {{baseUrl}}/suppliers/11
+Authorization: Bearer {{token}}
+
+### Actualizar un proveedor
+PUT {{baseUrl}}/suppliers/11
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "company_name": "Distribuidora XYZAlfa",
+  "contact_name": "Roberto Sánchez",
+  "phone": "3311112222",
+  "email": "contacto@xyz.mx"
+}
+
+### Eliminar un proveedor
+DELETE {{baseUrl}}/suppliers/11
+Authorization: Bearer {{token}}
+Accept: application/json
+
+
+### ============================================================
+### 💰 SUPPLIER DEBTS
+### ============================================================
+
+### Obtener deudas de proveedores
+GET {{baseUrl}}/supplier-debts
+Authorization: Bearer {{token}}
+
+### Crear una deuda de proveedor
+POST {{baseUrl}}/supplier-debts
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "supplier_id": 1,
+  "start_date": "2026-08-01",
+  "due_date": "2026-08-30",
+  "amount": 2500.00,
+  "status": "pending"
+}
+
+### Ver una deuda de proveedor
+GET {{baseUrl}}/supplier-debts/13
+Authorization: Bearer {{token}}
+
+### Actualizar una deuda de proveedor
+PUT {{baseUrl}}/supplier-debts/13
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "supplier_id": 1,
+  "start_date": "2026-08-01",
+  "due_date": "2026-08-30",
+  "amount": 2500.00,
+  "status": "paid"
+}
+
+### Eliminar una deuda de proveedor
+DELETE {{baseUrl}}/supplier-debts/12
+Authorization: Bearer {{token}}
+Accept: application/json
+
+
+### ============================================================
+### 📝 SUPPLIER NOTES (Notas de Trato)
+### ============================================================
+
+### Obtener todas las notas
+GET {{baseUrl}}/supplier-notes
+Authorization: Bearer {{token}}
+
+### Crear una nota de trato
+POST {{baseUrl}}/supplier-notes
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "supplier_id": 1,
+  "total_amount": 500.00,
+  "delivery_date": "2026-08-15",
+  "reminders": "Llamar antes de entregar",
+  "products": [
+    {
+      "product_id": 6,
+      "quantity_agreed": 10,
+      "price_agreed": 12.50,
+      "discount": 0,
+      "is_gift": false
+    }
+  ]
+}
+
+### Ver una nota
+GET {{baseUrl}}/supplier-notes/2
+Authorization: Bearer {{token}}
+
+### Actualizar una nota
+PUT {{baseUrl}}/supplier-notes/2
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "supplier_id": 1,
+  "total_amount": 500.00,
+  "delivery_date": "2026-08-15",
+  "reminders": "Actualizado",
+  "status": "pending"
+}
+
+### Eliminar una nota
+DELETE {{baseUrl}}/supplier-notes/2
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### Escanear ticket con Gemini
 POST {{baseUrl}}/supplier-notes/1/scan
 Authorization: Bearer {{token}}
 Content-Type: multipart/form-data; boundary=boundary
@@ -194,3 +578,110 @@ Content-Type: image/jpeg
 
 < ./ticket.jpeg
 --boundary--
+
+### Confirmar entrada (actualiza stock)
+PUT {{baseUrl}}/supplier-notes/1/confirm
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### Registrar pago
+PUT {{baseUrl}}/supplier-notes/1/pay
+Authorization: Bearer {{token}}
+Accept: application/json
+
+
+### ============================================================
+### 💵 CASH REGISTERS (Corte de Caja)
+### ============================================================
+
+### Obtener todos los cortes de caja
+GET {{baseUrl}}/cash-registers
+Authorization: Bearer {{token}}
+
+### Ver turno activo
+GET {{baseUrl}}/cash-registers/active
+Authorization: Bearer {{token}}
+
+### Abrir turno
+POST {{baseUrl}}/cash-registers/open
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "opening_cash": 500.00
+}
+
+### Ver un corte de caja específico
+GET {{baseUrl}}/cash-registers/1
+Authorization: Bearer {{token}}
+
+### Cerrar turno
+POST {{baseUrl}}/cash-registers/1/close
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "closed_cash": 850.00
+}
+
+
+### ============================================================
+### 🏦 PROVIDER FUNDS (Fondo de Proveedores)
+### ============================================================
+
+### Ver fondo de proveedores + notas pendientes
+GET {{baseUrl}}/provider-funds
+Authorization: Bearer {{token}}
+
+### Ver un fondo específico
+GET {{baseUrl}}/provider-funds/1
+Authorization: Bearer {{token}}
+
+### Actualizar el fondo
+PUT {{baseUrl}}/provider-funds/1
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "defined_amount": 5000.00,
+  "extraction_limit": 2000.00,
+  "available_balance": 5000.00
+}
+
+### Extraer del fondo (registrar pago a proveedor)
+POST {{baseUrl}}/provider-funds/1/extract
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "amount": 1000.00
+}
+
+
+### ============================================================
+### 📈 DASHBOARD
+### ============================================================
+
+### Dashboard general
+GET {{baseUrl}}/dashboard
+Authorization: Bearer {{token}}
+
+### Reporte de ventas
+GET {{baseUrl}}/dashboard/reportes/ventas
+Authorization: Bearer {{token}}
+
+### Reporte de productos
+GET {{baseUrl}}/dashboard/reportes/productos
+Authorization: Bearer {{token}}
+
+### Reporte de clientes
+GET {{baseUrl}}/dashboard/reportes/clientes
+Authorization: Bearer {{token}}
+
+### Reporte de deudas
+GET {{baseUrl}}/dashboard/reportes/deudas
+Authorization: Bearer {{token}}

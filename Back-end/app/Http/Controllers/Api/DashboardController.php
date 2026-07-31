@@ -37,7 +37,7 @@ class DashboardController extends Controller
             ->selectRaw('DATE(created_at) as fecha, SUM(amount) as total')
             ->groupBy('fecha')
             ->pluck('total', 'fecha');
-        $gastos = Sale::whereBetween('created_at', [Carbon::today()->subDays(6), Carbon::today()])
+        $gastos = Sale::whereBetween('sales.created_at', [Carbon::today()->subDays(6), Carbon::today()])
             ->join('products', 'sales.product_id', '=', 'products.id')
             ->selectRaw('DATE(sales.created_at) as fecha, SUM(products.purchase_price * sales.quantity) as total')
             ->groupBy('fecha')
@@ -87,11 +87,10 @@ class DashboardController extends Controller
             ->orderBy('created_at', 'desc')
             ->paginate(20);
 
-           return response()->json([
-                'message' => 'Reporte de ventas',
-                'data' => $ventas
-            ], 200);
-
+        return response()->json([
+            'message' => 'Reporte de ventas',
+            'data' => $ventas
+        ], 200);
     }
 
     public function reporteProductos()
@@ -99,12 +98,10 @@ class DashboardController extends Controller
         $productos = Product::with('category')
             ->orderBy('stock', 'asc')
             ->get();
-            return response()->json([
-                'message' => 'Reporte de productos',
-                'data' => $productos
-            ], 200);
-
-
+        return response()->json([
+            'message' => 'Reporte de productos',
+            'data' => $productos
+        ], 200);
     }
 
     public function reporteClientes()
@@ -112,7 +109,7 @@ class DashboardController extends Controller
         $clientes = Client::withCount('debts')
             ->with('debts')
             ->get();
-return response()->json([
+        return response()->json([
             'message' => 'Reporte de clientes',
             'data' => $clientes
         ], 200);
@@ -128,7 +125,5 @@ return response()->json([
             'message' => 'Reporte de deudas de clientes',
             'data' => $deudasClientes
         ], 200);
-
-
     }
 }
