@@ -162,4 +162,45 @@ class ProductController extends Controller
 
         return response()->json(['message' => 'Producto eliminado permanentemente de la base de datos']);
     }
+
+
+
+    public function match(Request $request)
+    {
+        $validated = $request->validate([
+            'products' => 'required|array|min:1',
+            'products.*.nombre' => 'required|string',
+            'products.*.cantidad' => 'nullable|numeric',
+            'products.*.precio_unitario' => 'nullable|numeric',
+        ]);
+
+        $matched = [];
+        $unmatched = [];
+
+        foreach ($validated['products'] as $item) {
+            $nombreBuscado = strtolower(trim($item['nombre']));
+
+            // PASO 1: buscar el producto con whereRaw como te expliqué
+            $producto = Product::whereRaw('LOWER(name) = ?', [$nombreBuscado])->first();
+
+            // PASO 2: si $producto existe, agregarlo a $matched con su id y nombre
+            if ($producto) {
+                $matched[] = [
+                    'id' => $producto->id,
+                    'name' => $producto->name,
+                    'cantidad' => $item['cantidad'] ?? null,
+                    'precio_unitario' => $item['precio_unitario'] ?? null,
+                ];
+            }
+            // PASO 3: si no existe, agregarlo a $unmatched con el nombre original
+            else {
+                $unmatched[] = $item['nombre'];
+            }
+        }
+
+        return response()->json([
+            'matched' => $matched,
+            'unmatched' => $unmatched,
+        ]);
+    }
 }

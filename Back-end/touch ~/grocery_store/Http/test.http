@@ -691,3 +691,17 @@ Authorization: Bearer {{token}}
 ### Reporte de deudas
 GET {{baseUrl}}/dashboard/reportes/deudas
 Authorization: Bearer {{token}}
+
+
+### Match de productos detectados por IA
+POST {{baseUrl}}/products/match
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "products": [
+    { "nombre": "Arroz Súper Extra 1kg", "cantidad": 10, "precio_unitario": 12.50 },
+    { "nombre": "Producto Inventado XYZ", "cantidad": 5, "precio_unitario": 30.00 }
+  ]
+}
