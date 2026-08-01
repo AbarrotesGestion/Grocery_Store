@@ -567,8 +567,8 @@ DELETE {{baseUrl}}/supplier-notes/2
 Authorization: Bearer {{token}}
 Accept: application/json
 
-### Escanear ticket con Gemini
-POST {{baseUrl}}/supplier-notes/1/scan
+### Escanear ticket con claude
+POST {{baseUrl}}/supplier-notes/3/scan
 Authorization: Bearer {{token}}
 Content-Type: multipart/form-data; boundary=boundary
 
@@ -580,12 +580,18 @@ Content-Type: image/jpeg
 --boundary--
 
 ### Confirmar entrada (actualiza stock)
-PUT {{baseUrl}}/supplier-notes/1/confirm
+PUT {{baseUrl}}/supplier-notes/3/confirm
 Authorization: Bearer {{token}}
+Content-Type: application/json
 Accept: application/json
 
+{
+  "products": [
+    { "product_id": 6, "quantity_received": 10 }
+  ]
+}
 ### Registrar pago
-PUT {{baseUrl}}/supplier-notes/1/pay
+PUT {{baseUrl}}/supplier-notes/3/pay
 Authorization: Bearer {{token}}
 Accept: application/json
 

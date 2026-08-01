@@ -112,7 +112,7 @@ class SupplierNoteController extends Controller
         ], 200);
     }
 
-    public function confirm($id)
+    public function confirm(Request $request, $id)
     {
         $employee = auth()->user()->employee;
         if (!$employee) {
@@ -125,20 +125,34 @@ class SupplierNoteController extends Controller
             return response()->json(['message' => 'Solo se pueden confirmar notas pendientes'], 400);
         }
 
+        $validated = $request->validate([
+            'products' => 'required|array|min:1',
+            'products.*.product_id' => 'required|exists:products,id',
+            'products.*.quantity_received' => 'required|integer|min:0',
+        ]);
+
         DB::beginTransaction();
         try {
-            // Actualizar stock de cada producto
-            foreach ($note->details as $detail) {
-                $detail->product->increment('stock', $detail->quantity_agreed);
-            }
+            foreach ($validated['products'] as $item) {
+                $detail = $note->details->firstWhere('product_id', $item['product_id']);
 
+                if (!$detail) {
+                    DB::rollBack();
+                    return response()->json([
+                        'message' => "El producto ID {$item['product_id']} no pertenece a esta nota de trato"
+                    ], 422);
+                }
+
+                $detail->update(['quantity_received' => $item['quantity_received']]);
+                Product::where('id', $item['product_id'])->increment('stock', $item['quantity_received']);
+            }
             $note->update([
                 'status' => 'confirmed',
                 'confirmed_by' => $employee->id,
             ]);
 
             DB::commit();
-            return response()->json(['message' => 'Nota confirmada y stock actualizado', 'data' => $note], 200);
+            return response()->json(['message' => 'Nota confirmada y stock actualizado', 'data' => $note->fresh('details.product')], 200);
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json(['error' => $e->getMessage()], 500);
@@ -148,55 +162,75 @@ class SupplierNoteController extends Controller
 
 
     public function scan(Request $request)
-{
-    $request->validate([
-        'image' => 'required|image|mimes:jpg,jpeg,png,webp|max:10240',
-    ]);
+    {
+        $request->validate([
+            'image' => 'required|image|mimes:jpg,jpeg,png,webp|max:10240',
+        ]);
 
-    try {
-        $image = $request->file('image');
-        $imageData = base64_encode(file_get_contents($image->getRealPath()));
-        $mimeType = $image->getMimeType();
+        try {
+            $image = $request->file('image');
+            $imageData = base64_encode(file_get_contents($image->getRealPath()));
+            $mimeType = $image->getMimeType();
 
-        $apiKey = config('services.gemini.key');
+            $apiKey = config('services.anthropic.key');
+            $response = Http::withHeaders([
+                'x-api-key' => $apiKey,
+                'anthropic-version' => '2023-06-01',
+            ])->post("https://api.anthropic.com/v1/messages", [
 
-        $response = Http::post("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key={$apiKey}", [
-            'contents' => [[
-                'parts' => [
-                    ['inline_data' => ['mime_type' => $mimeType, 'data' => $imageData]],
-                    ['text' => 'Analiza este ticket de proveedor y extrae todos los productos. Devuelve SOLO un array JSON con los campos: nombre, cantidad, precio_unitario. Sin texto adicional, sin markdown, solo el JSON.']
+
+                // aquí va el body
+
+                'model' => 'claude-sonnet-4-6',
+                'max_tokens' => 1024,
+                'messages' => [
+                    [
+                        'role' => 'user',
+                        'content' => [
+                            [
+                                'type' => 'image',
+                                'source' => [
+                                    'type' => 'base64',
+                                    'media_type' => $mimeType,
+                                    'data' => $imageData,
+                                ]
+                            ],
+                            [
+                                'type' => 'text',
+                                'text' => 'Analiza este ticket de proveedor y extrae todos los productos. Devuelve SOLO un array JSON con los campos: nombre, cantidad, precio_unitario. Sin texto adicional, sin markdown, solo el JSON.'
+                            ]
+                        ]
+                    ]
                 ]
-            ]]
-        ]);
+            ]);
 
-        // Texto crudo de Gemini
-        $text = $response->json('candidates.0.content.parts.0.text');
+            // Texto crudo de Anthropic
+            $text = $response->json('content.0.text');
 
-        // Log completo de la respuesta
-        \Log::info('Respuesta Gemini:', [
-            'response' => $response->json(),
-            'text' => $text
-        ]);
+            // Log completo de la respuesta
+            Log::info('Respuesta Anthropic:', [
+                'response' => $response->json(),
+                'text' => $text
+            ]);
 
-        // 🔧 Limpieza de markdown que Gemini agrega a veces
-        $clean = preg_replace('/```json\s*/i', '', $text);
-        $clean = preg_replace('/```\s*/i', '', $clean);
-        $clean = trim($clean);
+            // 🔧 Limpieza de markdown que Gemini agrega a veces
+            $clean = preg_replace('/```json\s*/i', '', $text);
+            $clean = preg_replace('/```\s*/i', '', $clean);
+            $clean = trim($clean);
 
-        // Intentar decodificar
-        $products = json_decode($clean, true);
+            // Intentar decodificar
+            $products = json_decode($clean, true);
 
-        return response()->json([
-            'message' => 'Productos extraídos del ticket',
-            'products' => $products
-        ], 200);
-
-    } catch (\Exception $e) {
-        return response()->json([
-            'message' => 'Error al procesar la imagen: ' . $e->getMessage()
-        ], 500);
+            return response()->json([
+                'message' => 'Productos extraídos del ticket',
+                'products' => $products
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Error al procesar la imagen: ' . $e->getMessage()
+            ], 500);
+        }
     }
-}
 
 
 
