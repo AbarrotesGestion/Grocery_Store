@@ -887,5 +887,42 @@ Accept: application/json
     { "nombre": "Producto Inventado XYZ", "cantidad": 5, "precio_unitario": 30.00 }
   ]
 }
+### Descargar reporte de dashboard en PDF
+GET {{baseUrl}}/reportes/dashboard/pdf
+Authorization: Bearer {{token}}
 
+### Descargar reporte de dashboard en CSV
+GET {{baseUrl}}/reportes/dashboard/csv
+Authorization: Bearer {{token}}
 
+### Venta: Pan Integral ×2 = $96, cliente paga $98 en efectivo
+POST {{baseUrl}}/sales
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "products": [
+    { "product_id": 11, "quantity": 2, "sale_unit_type": "unit" }
+  ],
+  "client_id": null,
+  "payment_method": "cash",
+  "cash_amount": 98.00,
+  "card_amount": 0
+}
+
+### Ticket de 2 productos, pago mixto con cambio
+POST {{baseUrl}}/sales
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "products": [
+    { "product_id": 6, "quantity": 1, "sale_unit_type": "unit" },
+    { "product_id": 12, "quantity": 1, "sale_unit_type": "unit" }
+  ],
+  "client_id": null,
+  "payment_method": "mixed",
+  "cash_amount": 30.00,
+  "card_amount": 30.00
+}

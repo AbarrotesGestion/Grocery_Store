@@ -18,6 +18,7 @@ use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\CashRegisterController;
 use App\Http\Controllers\Api\SupplierNoteController;
 use App\Http\Controllers\Api\ProviderFundController;
+use App\Http\Controllers\Api\ReportController;
 
 
 // Test básico
@@ -130,4 +131,10 @@ Route::middleware(['auth:sanctum', 'role:Administrador,Almacenista'])->group(fun
     Route::get('provider-funds/{id}', [ProviderFundController::class, 'show']);
     Route::put('provider-funds/{id}', [ProviderFundController::class, 'update']);
     Route::post('provider-funds/{id}/extract', [ProviderFundController::class, 'extract']);
+});
+
+// Reportes exportables (PDF y CSV)
+Route::middleware(['auth:sanctum', 'role:Administrador'])->group(function () {
+    Route::get('reportes/dashboard/pdf', [ReportController::class, 'dashboardPdf']);
+    Route::get('reportes/dashboard/csv', [ReportController::class, 'dashboardCsv']);
 });

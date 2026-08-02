@@ -24,129 +24,130 @@ class SaleController extends Controller
      * Store a newly created resource in storage.
      */
     public function store(Request $request)
-{
-    $validated = $request->validate([
-        'products' => 'required|array|min:1',
-        'products.*.product_id' => 'required|exists:products,id',
-        'products.*.quantity' => 'required|integer|min:1',
-        'products.*.sale_unit_type' => 'nullable|string|in:unit,package',
-        'client_id' => 'nullable|exists:clients,id',
-        'payment_method' => 'required|in:cash,card,mixed',
-        'cash_amount' => 'required|numeric|min:0',
-        'card_amount' => 'required|numeric|min:0',
-    ]);
+    {
+        $validated = $request->validate([
+            'products' => 'required|array|min:1',
+            'products.*.product_id' => 'required|exists:products,id',
+            'products.*.quantity' => 'required|integer|min:1',
+            'products.*.sale_unit_type' => 'nullable|string|in:unit,package',
+            'client_id' => 'nullable|exists:clients,id',
+            'payment_method' => 'required|in:cash,card,mixed',
+            'cash_amount' => 'required|numeric|min:0',
+            'card_amount' => 'required|numeric|min:0',
+        ]);
 
-    DB::beginTransaction();
-    try {
-        $employee = auth()->user()->employee;
-        if (!$employee) {
-            DB::rollBack();
-            return response()->json(['message' => 'No se encontró el empleado asociado al usuario autenticado'], 404);
-        }
-
-        // El turno de caja ya NO se recibe del cliente — el backend resuelve
-        // el turno activo del empleado autenticado, evitando ventas contra
-        // turnos cerrados o equivocados.
-        $turnoActivo = \App\Models\CashRegister::where('employee_id', $employee->id)
-            ->whereNull('closed_at')
-            ->first();
-
-        if (!$turnoActivo) {
-            DB::rollBack();
-            return response()->json(['message' => 'No tienes un turno de caja abierto. Abre un turno antes de vender.'], 400);
-        }
-
-        // 1. Cargar productos, validar stock y calcular el total de cada línea
-        $lines = [];
-        $ticketTotal = 0;
-
-        foreach ($validated['products'] as $item) {
-            $product = Product::findOrFail($item['product_id']);
-
-            if ($product->stock < $item['quantity']) {
+        DB::beginTransaction();
+        try {
+            $employee = auth()->user()->employee;
+            if (!$employee) {
                 DB::rollBack();
-                return response()->json([
-                    'message' => "No hay suficiente stock de {$product->name} (disponible: {$product->stock})"
-                ], 400);
+                return response()->json(['message' => 'No se encontró el empleado asociado al usuario autenticado'], 404);
             }
 
-            $lineTotal = $product->price * $item['quantity'];
-            $ticketTotal += $lineTotal;
+            // El turno de caja ya NO se recibe del cliente — el backend resuelve
+            // el turno activo del empleado autenticado, evitando ventas contra
+            // turnos cerrados o equivocados.
+            $turnoActivo = \App\Models\CashRegister::where('employee_id', $employee->id)
+                ->whereNull('closed_at')
+                ->first();
 
-            $lines[] = [
-                'product' => $product,
-                'quantity' => $item['quantity'],
-                'sale_unit_type' => $item['sale_unit_type'] ?? 'unit',
-                'total_price' => $lineTotal,
-            ];
-        }
-
-        // 2. Validar que el pago cubra el total (RF-14)
-        $pagado = $validated['cash_amount'] + $validated['card_amount'];
-        if ($pagado < $ticketTotal) {
-            DB::rollBack();
-            return response()->json(['message' => 'El monto pagado no cubre el total de la venta'], 422);
-        }
-
-        $changeAmount = round($pagado - $ticketTotal, 2);
-
-        // 3. Identificador único para agrupar el ticket
-        $saleGroupId = (string) Str::uuid();
-        $createdSales = [];
-        $sumaCashAsignada = 0;
-        $sumaCardAsignada = 0;
-        $lastIndex = count($lines) - 1;
-
-        foreach ($lines as $i => $line) {
-            $proportion = $ticketTotal > 0 ? $line['total_price'] / $ticketTotal : 0;
-
-            if ($i === $lastIndex) {
-                $lineCash = round($validated['cash_amount'] - $sumaCashAsignada, 2);
-                $lineCard = round($validated['card_amount'] - $sumaCardAsignada, 2);
-            } else {
-                $lineCash = round($validated['cash_amount'] * $proportion, 2);
-                $lineCard = round($validated['card_amount'] * $proportion, 2);
-                $sumaCashAsignada += $lineCash;
-                $sumaCardAsignada += $lineCard;
+            if (!$turnoActivo) {
+                DB::rollBack();
+                return response()->json(['message' => 'No tienes un turno de caja abierto. Abre un turno antes de vender.'], 400);
             }
 
-            $sale = Sale::create([
+            // 1. Cargar productos, validar stock y calcular el total de cada línea
+            $lines = [];
+            $ticketTotal = 0;
+
+            foreach ($validated['products'] as $item) {
+                $product = Product::findOrFail($item['product_id']);
+
+                if ($product->stock < $item['quantity']) {
+                    DB::rollBack();
+                    return response()->json([
+                        'message' => "No hay suficiente stock de {$product->name} (disponible: {$product->stock})"
+                    ], 400);
+                }
+
+                $lineTotal = $product->price * $item['quantity'];
+                $ticketTotal += $lineTotal;
+
+                $lines[] = [
+                    'product' => $product,
+                    'quantity' => $item['quantity'],
+                    'sale_unit_type' => $item['sale_unit_type'] ?? 'unit',
+                    'total_price' => $lineTotal,
+                ];
+            }
+
+            // 2. Validar que el pago cubra el total (RF-14)
+            $pagado = $validated['cash_amount'] + $validated['card_amount'];
+            if ($pagado < $ticketTotal) {
+                DB::rollBack();
+                return response()->json(['message' => 'El monto pagado no cubre el total de la venta'], 422);
+            }
+
+            $changeAmount = round($pagado - $ticketTotal, 2);
+            $cashCobrado = round($validated['cash_amount'] - $changeAmount, 2);
+            $cardCobrado = round($validated['card_amount'], 2);
+
+            // 3. Identificador único para agrupar el ticket
+            $saleGroupId = (string) Str::uuid();
+            $createdSales = [];
+            $sumaCashAsignada = 0;
+            $sumaCardAsignada = 0;
+            $lastIndex = count($lines) - 1;
+
+            foreach ($lines as $i => $line) {
+                $proportion = $ticketTotal > 0 ? $line['total_price'] / $ticketTotal : 0;
+
+                if ($i === $lastIndex) {
+                    $lineCash = round($cashCobrado - $sumaCashAsignada, 2);
+                    $lineCard = round($cardCobrado - $sumaCardAsignada, 2);
+                } else {
+                    $lineCash = round($cashCobrado * $proportion, 2);
+                    $lineCard = round($cardCobrado * $proportion, 2);
+                    $sumaCashAsignada += $lineCash;
+                    $sumaCardAsignada += $lineCard;
+                }
+
+                $sale = Sale::create([
+                    'sale_group_id' => $saleGroupId,
+                    'product_id' => $line['product']->id,
+                    'quantity' => $line['quantity'],
+                    'sale_unit_type' => $line['sale_unit_type'],
+                    'total_price' => $line['total_price'],
+                    'employee_id' => $employee->id,
+                    'client_id' => $validated['client_id'] ?? null,
+                    'cash_register_id' => $turnoActivo->id,
+                    'payment_method' => $validated['payment_method'],
+                    'cash_amount' => $lineCash,
+                    'card_amount' => $lineCard,
+                    'change_amount' => $i === $lastIndex ? $changeAmount : 0,
+                    'status' => 'completed',
+                ]);
+
+                $line['product']->decrement('stock', $line['quantity']);
+                $createdSales[] = $sale;
+            }
+
+            DB::commit();
+            Log::info('Venta registrada: grupo ' . $saleGroupId);
+
+            return response()->json([
+                'message' => 'Venta registrada exitosamente',
                 'sale_group_id' => $saleGroupId,
-                'product_id' => $line['product']->id,
-                'quantity' => $line['quantity'],
-                'sale_unit_type' => $line['sale_unit_type'],
-                'total_price' => $line['total_price'],
-                'employee_id' => $employee->id,
-                'client_id' => $validated['client_id'] ?? null,
-                'cash_register_id' => $turnoActivo->id,
-                'payment_method' => $validated['payment_method'],
-                'cash_amount' => $lineCash,
-                'card_amount' => $lineCard,
-                'change_amount' => $i === $lastIndex ? $changeAmount : 0,
-                'status' => 'completed',
-            ]);
-
-            $line['product']->decrement('stock', $line['quantity']);
-            $createdSales[] = $sale;
+                'total' => $ticketTotal,
+                'change_amount' => $changeAmount,
+                'data' => $createdSales,
+            ], 201);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error al registrar venta: ' . $e->getMessage());
+            return response()->json(['message' => 'Error al registrar la venta: ' . $e->getMessage()], 500);
         }
-
-        DB::commit();
-        Log::info('Venta registrada: grupo ' . $saleGroupId);
-
-        return response()->json([
-            'message' => 'Venta registrada exitosamente',
-            'sale_group_id' => $saleGroupId,
-            'total' => $ticketTotal,
-            'change_amount' => $changeAmount,
-            'data' => $createdSales,
-        ], 201);
-
-    } catch (\Exception $e) {
-        DB::rollBack();
-        Log::error('Error al registrar venta: ' . $e->getMessage());
-        return response()->json(['message' => 'Error al registrar la venta: ' . $e->getMessage()], 500);
     }
-}
 
     /**
      * Display the specified resource.
@@ -161,122 +162,120 @@ class SaleController extends Controller
     /**
      * Update the specified resource in storage.
      */
-  /**
- * Update the specified resource in storage.
- */
-public function update(Request $request, string $id)
-{
-    $validated = $request->validate([
-        'product_id' => 'required|exists:products,id',
-        'quantity' => 'required|integer|min:1',
-        'additional_cash' => 'nullable|numeric|min:0',
-        'additional_card' => 'nullable|numeric|min:0',
-    ]);
-
-    DB::beginTransaction();
-    try {
-        // lockForUpdate() bloquea esta fila en la base de datos mientras dura
-        // la transacción: si otra petición llega casi al mismo tiempo sobre
-        // la misma venta, espera a que esta termine en vez de leer datos
-        // que están a punto de cambiar (evita condiciones de carrera).
-        $sale = Sale::lockForUpdate()->findOrFail($id);
-
-        if ($sale->isCancelled()) {
-            DB::rollBack();
-            return response()->json(['message' => 'No se puede editar una venta cancelada'], 400);
-        }
-
-        $oldProduct = Product::findOrFail($sale->product_id);
-        $newProduct = Product::findOrFail($validated['product_id']);
-
-        // Devolver stock del producto anterior
-        $oldProduct->increment('stock', $sale->quantity);
-
-        // Verificar stock del nuevo producto
-        if ($newProduct->stock < $validated['quantity']) {
-            DB::rollBack();
-            return response()->json(['message' => 'No hay suficiente stock disponible'], 400);
-        }
-        $newProduct->decrement('stock', $validated['quantity']);
-
-        $newLineTotal = $newProduct->price * $validated['quantity'];
-
-        // Recalcular el ticket completo — también bloqueamos las líneas hermanas
-        // del mismo grupo, por la misma razón: evitar que se lean a medio actualizar.
-        $otrasLineas = Sale::where('sale_group_id', $sale->sale_group_id)
-            ->where('id', '!=', $sale->id)
-            ->lockForUpdate()
-            ->get();
-
-        // Cambio que YA se había entregado antes de esta edición (histórico del ticket)
-        $cambioYaEntregadoAntes = round($sale->change_amount + $otrasLineas->sum('change_amount'), 2);
-
-        $ticketTotal = $newLineTotal + $otrasLineas->sum('total_price');
-        $cashTotalTicket = $sale->cash_amount + $otrasLineas->sum('cash_amount');
-        $cardTotalTicket = $sale->card_amount + $otrasLineas->sum('card_amount');
-        $yaPagado = $cashTotalTicket + $cardTotalTicket;
-
-        $diferencia = round($ticketTotal - $yaPagado, 2);
-        $cambioAEntregar = 0;
-
-        if ($diferencia > 0) {
-            // El nuevo producto es más caro: falta cobrar
-            $extra = ($validated['additional_cash'] ?? 0) + ($validated['additional_card'] ?? 0);
-            if ($extra < $diferencia) {
-                DB::rollBack();
-                return response()->json([
-                    'message' => "El nuevo producto cuesta más. Faltan \${$diferencia} por cobrar.",
-                    'faltante' => $diferencia,
-                ], 422);
-            }
-            $cashTotalTicket += $validated['additional_cash'] ?? 0;
-            $cardTotalTicket += $validated['additional_card'] ?? 0;
-
-        } elseif ($diferencia < 0) {
-            // El nuevo producto es más barato: hay que devolver cambio.
-            // Se descuenta del efectivo primero (es lo que se puede devolver físicamente).
-            $cambioAEntregar = abs($diferencia);
-            $descuentoCash = min($cambioAEntregar, $cashTotalTicket);
-            $cashTotalTicket -= $descuentoCash;
-            $restante = $cambioAEntregar - $descuentoCash;
-            if ($restante > 0) {
-                $cardTotalTicket -= $restante;
-            }
-        }
-
-        // Actualizar la línea editada
-        $sale->update([
-            'product_id' => $newProduct->id,
-            'quantity' => $validated['quantity'],
-            'total_price' => $newLineTotal,
-            'cash_amount' => $ticketTotal > 0 ? round($cashTotalTicket * ($newLineTotal / $ticketTotal), 2) : 0,
-            'card_amount' => $ticketTotal > 0 ? round($cardTotalTicket * ($newLineTotal / $ticketTotal), 2) : 0,
+    /**
+     * Update the specified resource in storage.
+     */
+    public function update(Request $request, string $id)
+    {
+        $validated = $request->validate([
+            'product_id' => 'required|exists:products,id',
+            'quantity' => 'required|integer|min:1',
+            'additional_cash' => 'nullable|numeric|min:0',
+            'additional_card' => 'nullable|numeric|min:0',
         ]);
 
-        // Reprorratear el resto de las líneas del mismo ticket
-        foreach ($otrasLineas as $otra) {
-            $proportion = $ticketTotal > 0 ? $otra->total_price / $ticketTotal : 0;
-            $otra->update([
-                'cash_amount' => round($cashTotalTicket * $proportion, 2),
-                'card_amount' => round($cardTotalTicket * $proportion, 2),
+        DB::beginTransaction();
+        try {
+            // lockForUpdate() bloquea esta fila en la base de datos mientras dura
+            // la transacción: si otra petición llega casi al mismo tiempo sobre
+            // la misma venta, espera a que esta termine en vez de leer datos
+            // que están a punto de cambiar (evita condiciones de carrera).
+            $sale = Sale::lockForUpdate()->findOrFail($id);
+
+            if ($sale->isCancelled()) {
+                DB::rollBack();
+                return response()->json(['message' => 'No se puede editar una venta cancelada'], 400);
+            }
+
+            $oldProduct = Product::findOrFail($sale->product_id);
+            $newProduct = Product::findOrFail($validated['product_id']);
+
+            // Devolver stock del producto anterior
+            $oldProduct->increment('stock', $sale->quantity);
+
+            // Verificar stock del nuevo producto
+            if ($newProduct->stock < $validated['quantity']) {
+                DB::rollBack();
+                return response()->json(['message' => 'No hay suficiente stock disponible'], 400);
+            }
+            $newProduct->decrement('stock', $validated['quantity']);
+
+            $newLineTotal = $newProduct->price * $validated['quantity'];
+
+            // Recalcular el ticket completo — también bloqueamos las líneas hermanas
+            // del mismo grupo, por la misma razón: evitar que se lean a medio actualizar.
+            $otrasLineas = Sale::where('sale_group_id', $sale->sale_group_id)
+                ->where('id', '!=', $sale->id)
+                ->lockForUpdate()
+                ->get();
+
+            // Cambio que YA se había entregado antes de esta edición (histórico del ticket)
+            $cambioYaEntregadoAntes = round($sale->change_amount + $otrasLineas->sum('change_amount'), 2);
+
+            $ticketTotal = $newLineTotal + $otrasLineas->sum('total_price');
+            $cashTotalTicket = $sale->cash_amount + $otrasLineas->sum('cash_amount');
+            $cardTotalTicket = $sale->card_amount + $otrasLineas->sum('card_amount');
+            $yaPagado = $cashTotalTicket + $cardTotalTicket;
+
+            $diferencia = round($ticketTotal - $yaPagado, 2);
+            $cambioAEntregar = 0;
+
+            if ($diferencia > 0) {
+                // El nuevo producto es más caro: falta cobrar
+                $extra = ($validated['additional_cash'] ?? 0) + ($validated['additional_card'] ?? 0);
+                if ($extra < $diferencia) {
+                    DB::rollBack();
+                    return response()->json([
+                        'message' => "El nuevo producto cuesta más. Faltan \${$diferencia} por cobrar.",
+                        'faltante' => $diferencia,
+                    ], 422);
+                }
+                $cashTotalTicket += $validated['additional_cash'] ?? 0;
+                $cardTotalTicket += $validated['additional_card'] ?? 0;
+            } elseif ($diferencia < 0) {
+                // El nuevo producto es más barato: hay que devolver cambio.
+                // Se descuenta del efectivo primero (es lo que se puede devolver físicamente).
+                $cambioAEntregar = abs($diferencia);
+                $descuentoCash = min($cambioAEntregar, $cashTotalTicket);
+                $cashTotalTicket -= $descuentoCash;
+                $restante = $cambioAEntregar - $descuentoCash;
+                if ($restante > 0) {
+                    $cardTotalTicket -= $restante;
+                }
+            }
+
+            // Actualizar la línea editada
+            $sale->update([
+                'product_id' => $newProduct->id,
+                'quantity' => $validated['quantity'],
+                'total_price' => $newLineTotal,
+                'cash_amount' => $ticketTotal > 0 ? round($cashTotalTicket * ($newLineTotal / $ticketTotal), 2) : 0,
+                'card_amount' => $ticketTotal > 0 ? round($cardTotalTicket * ($newLineTotal / $ticketTotal), 2) : 0,
             ]);
+
+            // Reprorratear el resto de las líneas del mismo ticket
+            foreach ($otrasLineas as $otra) {
+                $proportion = $ticketTotal > 0 ? $otra->total_price / $ticketTotal : 0;
+                $otra->update([
+                    'cash_amount' => round($cashTotalTicket * $proportion, 2),
+                    'card_amount' => round($cardTotalTicket * $proportion, 2),
+                ]);
+            }
+
+            // Solo reportar como "nuevo" el cambio que excede lo ya entregado antes de esta edición
+            $cambioNuevoAEntregar = max(0, round($cambioAEntregar - $cambioYaEntregadoAntes, 2));
+
+            DB::commit();
+            return response()->json([
+                'message' => 'Venta actualizada exitosamente',
+                'data' => $sale->fresh(),
+                'cambio_a_entregar' => $cambioNuevoAEntregar,
+            ], 200);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['message' => 'Error al actualizar la venta: ' . $e->getMessage()], 500);
         }
-
-        // Solo reportar como "nuevo" el cambio que excede lo ya entregado antes de esta edición
-        $cambioNuevoAEntregar = max(0, round($cambioAEntregar - $cambioYaEntregadoAntes, 2));
-
-        DB::commit();
-        return response()->json([
-            'message' => 'Venta actualizada exitosamente',
-            'data' => $sale->fresh(),
-            'cambio_a_entregar' => $cambioNuevoAEntregar,
-        ], 200);
-
-    } catch (\Exception $e) {
-        DB::rollBack();
-        return response()->json(['message' => 'Error al actualizar la venta: ' . $e->getMessage()], 500);
     }
-}
 
     private function cancelSaleLine(Sale $sale): array
     {
