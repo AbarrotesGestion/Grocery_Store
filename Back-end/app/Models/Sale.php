@@ -7,22 +7,31 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Sale extends Model
 {
-     use SoftDeletes;
+    use SoftDeletes;
     protected $fillable = [
+        'sale_group_id',
         'employee_id',
         'client_id',
         'product_id',
         'quantity',
+        'sale_unit_type',
         'total_price',
+        'cash_amount',
+        'card_amount',
+        'change_amount',
         'sale_date',
         'payment_method',
-         'status',
+        'cash_register_id',
+        'status',
     ];
 
     protected $casts = [
         'sale_date' => 'date',
         'quantity' => 'integer',
         'total_price' => 'decimal:2',
+        'cash_amount' => 'decimal:2',
+        'card_amount' => 'decimal:2',
+        'change_amount' => 'decimal:2',
     ];
 
     // Relaciones
@@ -46,10 +55,6 @@ class Sale extends Model
         return $this->hasOne(ClientDebt::class);
     }
 
-    public function details()
-    {
-        return $this->hasMany(SaleDetail::class);
-    }
     // Metodos de  estado  de venta 
     // Métodos de Estado
     public function isCancelled(): bool
@@ -68,7 +73,7 @@ class Sale extends Model
         return $this->status === 'completed';
     }
 
-     /**
+    /**
      * Cancelar la venta y devolver el stock
      */
     public function cancel(): bool
@@ -85,7 +90,7 @@ class Sale extends Model
 
         return true;
     }
-     /**
+    /**
      * Revertir cancelación
      */
     public function revert(): bool
@@ -107,5 +112,4 @@ class Sale extends Model
 
         return true;
     }
-
 }

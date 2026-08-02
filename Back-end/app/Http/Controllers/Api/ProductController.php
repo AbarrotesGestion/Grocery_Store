@@ -44,6 +44,8 @@ class ProductController extends Controller
             'allows_package_sale' => 'nullable|boolean',
             'allows_weight_sale' => 'nullable|boolean',
             'price_per_kg' => 'nullable|numeric|min:0',
+            'min_stock' => 'nullable|integer|min:0',
+            'supplier_id' => 'nullable|exists:suppliers,id',
         ]);
 
         // Asegurar que el stock tenga un valor por defecto
@@ -89,8 +91,9 @@ class ProductController extends Controller
             'allows_unit_sale' => 'nullable|boolean',
             'allows_package_sale' => 'nullable|boolean',
             'allows_weight_sale' => 'nullable|boolean',
-
             'price_per_kg' => 'nullable|numeric|min:0',
+            'min_stock' => 'nullable|integer|min:0',
+            'supplier_id' => 'nullable|exists:suppliers,id',
         ]);
 
         $product->update($validated);

@@ -53,11 +53,11 @@ Accept: application/json
 }
 
 ### Obtener un producto por ID
-GET {{baseUrl}}/products/20
+GET {{baseUrl}}/products/21
 Authorization: Bearer {{token}}
 
 ### Actualizar un producto
-PUT {{baseUrl}}/products/20
+PUT {{baseUrl}}/products/21
 Authorization: Bearer {{token}}
 Content-Type: application/json
 Accept: application/json
@@ -69,7 +69,7 @@ Accept: application/json
   "purchase_price": 12.00,
   "stock": 60,
   "category_id": 1,
-  "barcode": "454343534345467890",
+  "barcode": "750343534345467890",
   "package_size": 1,
   "stock_in_units": 60,
   "price_per_unit": 19.00,
@@ -95,7 +95,6 @@ Authorization: Bearer {{token}}
 Accept: application/json
 
 ### Eliminar permanentemente (solo Admin)
-### ⚠️ OJO: tu ruta real es /force-delete, no /force — revisa api.php
 DELETE {{baseUrl}}/products/20/force-delete
 Authorization: Bearer {{token}}
 Accept: application/json
@@ -121,11 +120,11 @@ Accept: application/json
 }
 
 ### Obtener una categoría por ID
-GET {{baseUrl}}/categories/11
+GET {{baseUrl}}/categories/12
 Authorization: Bearer {{token}}
 
 ### Actualizar una categoría
-PUT {{baseUrl}}/categories/11
+PUT {{baseUrl}}/categories/12
 Authorization: Bearer {{token}}
 Content-Type: application/json
 Accept: application/json
@@ -136,58 +135,183 @@ Accept: application/json
 }
 
 ### Eliminar una categoría
-DELETE {{baseUrl}}/categories/11
+DELETE {{baseUrl}}/categories/12
 Authorization: Bearer {{token}}
 Accept: application/json
 
 
 ### ============================================================
-### 🧾 SALES
+### 🧾 SALES — DISEÑO NUEVO (ticket con múltiples productos)
 ### ============================================================
+
+### 0. Ver turno activo (verifica antes de vender que haya uno abierto)
+GET {{baseUrl}}/cash-registers/active
+Authorization: Bearer {{token}}
+
+### 0.1 Abrir turno (solo si no hay uno activo)
+POST {{baseUrl}}/cash-registers/open
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "opening_cash": 500.00
+}
 
 ### Obtener ventas
 GET {{baseUrl}}/sales
 Authorization: Bearer {{token}}
 
-### Crear una venta
+### 1. Crear venta — UN solo producto, pago 100% efectivo
 POST {{baseUrl}}/sales
 Authorization: Bearer {{token}}
 Content-Type: application/json
 Accept: application/json
 
 {
-  "product_id": 6,
-  "quantity": 2,
-  "client_id": null
+  "products": [
+    { "product_id": 11, "quantity": 2, "sale_unit_type": "unit" }
+  ],
+  "client_id": null,
+  "payment_method": "cash",
+  "cash_amount": 98.00,
+  "card_amount": 0
 }
 
-### Ver una venta
-GET {{baseUrl}}/sales/12
-Authorization: Bearer {{token}}
-
-### Actualizar una venta
-PUT {{baseUrl}}/sales/12
+### 2. Crear venta — VARIOS productos, pago 100% tarjeta
+POST {{baseUrl}}/sales
 Authorization: Bearer {{token}}
 Content-Type: application/json
 Accept: application/json
 
 {
-  "product_id": 6,
-  "quantity": 3
+  "products": [
+    { "product_id": 6, "quantity": 1, "sale_unit_type": "unit" },
+    { "product_id": 12, "quantity": 1, "sale_unit_type": "unit" }
+  ],
+  "client_id": null,
+  "payment_method": "card",
+  "cash_amount": 8.00,
+  "card_amount": 90.00
 }
 
-### Eliminar una venta
-DELETE {{baseUrl}}/sales/12
+### 3. Crear venta — VARIOS productos, pago MIXTO (efectivo + tarjeta)
+POST {{baseUrl}}/sales
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "products": [
+    { "product_id": 6, "quantity": 1, "sale_unit_type": "unit" },
+    { "product_id": 12, "quantity": 1, "sale_unit_type": "unit" }
+  ],
+  "client_id": null,
+  "payment_method": "mixed",
+  "cash_amount": 40.00,
+  "card_amount": 24.00
+}
+
+### 4. Intentar vender con pago insuficiente (debe rechazar con 422)
+POST {{baseUrl}}/sales
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "products": [
+    { "product_id": 6, "quantity": 5, "sale_unit_type": "unit" }
+  ],
+  "client_id": null,
+  "payment_method": "cash",
+  "cash_amount": 5.00,
+  "card_amount": 0
+}
+
+### 5. Intentar vender más stock del disponible (debe rechazar con 400)
+POST {{baseUrl}}/sales
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "products": [
+    { "product_id": 6, "quantity": 9999, "sale_unit_type": "unit" }
+  ],
+  "client_id": null,
+  "payment_method": "cash",
+  "cash_amount": 999999,
+  "card_amount": 0
+}
+
+### Ver una venta (usa un ID real que te haya devuelto el paso 1, 2 o 3)
+GET {{baseUrl}}/sales/25
+Authorization: Bearer {{token}}
+
+### 6. Actualizar una venta — cambiar de producto (más barato, genera cambio)
+### Usa el ID de una línea real de la venta del paso 1
+PUT {{baseUrl}}/sales/21
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "product_id": 10,
+  "quantity": 1
+}
+
+### 7. Actualizar una venta — cambiar por producto MÁS CARO sin pagar la diferencia (debe rechazar con 422)
+PUT {{baseUrl}}/sales/25
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "product_id": 20,
+  "quantity": 1
+}
+
+### 8. Actualizar una venta — cambiar por producto MÁS CARO, cubriendo la diferencia
+PUT {{baseUrl}}/sales/25
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "product_id": 13,
+  "quantity": 2,
+  "additional_cash": 20.00,
+  "additional_card": 50.00
+}
+
+### Cancelar UNA sola línea de venta
+POST {{baseUrl}}/sales/17/cancel
 Authorization: Bearer {{token}}
 Accept: application/json
 
-### Cancelar venta
-POST {{baseUrl}}/sales/12/cancel
+### Intentar cancelar la misma línea otra vez (debe rechazar con 400, "ya está cancelada")
+POST {{baseUrl}}/sales/17/cancel
 Authorization: Bearer {{token}}
 Accept: application/json
 
-### Revertir cancelación
-POST {{baseUrl}}/sales/12/revert
+### Revertir cancelación (solo Administrador)
+POST {{baseUrl}}/sales/25/revert
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### 9. Cancelar el TICKET COMPLETO
+### copia el "sale_group_id" que te devolvió el paso 3 y pégalo aquí abajo
+POST {{baseUrl}}/sales/group/91f99b7e-9038-4ce8-82b5-033be9a1a701/cancel
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### 10. Intentar cancelar el mismo grupo otra vez (debe reportar líneas ya canceladas, no fallar)
+POST {{baseUrl}}/sales/group/91f99b7e-9038-4ce8-82b5-033be9a1a701/cancel
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### Eliminar una venta (verifica que si estaba cancelada, NO duplique el stock)
+DELETE {{baseUrl}}/sales/17
 Authorization: Bearer {{token}}
 Accept: application/json
 
@@ -214,11 +338,11 @@ Accept: application/json
 }
 
 ### Obtener un ajuste por ID
-GET {{baseUrl}}/inventory-adjustments/18
+GET {{baseUrl}}/inventory-adjustments/19
 Authorization: Bearer {{token}}
 
 ### Actualizar un ajuste
-PUT {{baseUrl}}/inventory-adjustments/18
+PUT {{baseUrl}}/inventory-adjustments/19
 Authorization: Bearer {{token}}
 Content-Type: application/json
 Accept: application/json
@@ -231,7 +355,7 @@ Accept: application/json
 }
 
 ### Eliminar un ajuste
-DELETE {{baseUrl}}/inventory-adjustments/18
+DELETE {{baseUrl}}/inventory-adjustments/19
 Authorization: Bearer {{token}}
 Accept: application/json
 
@@ -253,21 +377,21 @@ Accept: application/json
 {
   "first_name": "Anónima",
   "last_name": "López",
-  "email": "Anónima.lopez12@tienda.com",
+  "email": "Anóniggma.lopez12@tienda.com",
   "phone": "3312345678",
   "full_address": "Calle Falsa 123",
-  "payroll_id": "EMP-011",
+  "payroll_id": "EMP-013",
   "hourly_rate": 75.00,
   "card_number": "1234567890123456",
   "role_id": 2
 }
 
 ### Ver un empleado
-GET {{baseUrl}}/employees/8
+GET {{baseUrl}}/employees/10
 Authorization: Bearer {{token}}
 
 ### Actualizar un empleado
-PUT {{baseUrl}}/employees/8
+PUT {{baseUrl}}/employees/10
 Authorization: Bearer {{token}}
 Content-Type: application/json
 Accept: application/json
@@ -285,7 +409,7 @@ Accept: application/json
 }
 
 ### Eliminar un empleado
-DELETE {{baseUrl}}/employees/8
+DELETE {{baseUrl}}/employees/10
 Authorization: Bearer {{token}}
 Accept: application/json
 
@@ -310,7 +434,7 @@ Accept: application/json
 }
 
 ### Actualizar un rol
-PUT {{baseUrl}}/roles/7
+PUT {{baseUrl}}/roles/8
 Authorization: Bearer {{token}}
 Content-Type: application/json
 Accept: application/json
@@ -321,7 +445,7 @@ Accept: application/json
 }
 
 ### Eliminar un rol
-DELETE {{baseUrl}}/roles/7
+DELETE {{baseUrl}}/roles/8
 Authorization: Bearer {{token}}
 Accept: application/json
 
@@ -545,7 +669,7 @@ Accept: application/json
 }
 
 ### Ver una nota
-GET {{baseUrl}}/supplier-notes/2
+GET {{baseUrl}}/supplier-notes/4
 Authorization: Bearer {{token}}
 
 ### Actualizar una nota
@@ -562,8 +686,34 @@ Accept: application/json
   "status": "pending"
 }
 
+### Intentar editar una nota YA confirmada cambiando el status directo (debe rechazar con 400)
+PUT {{baseUrl}}/supplier-notes/4
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "supplier_id": 1,
+  "total_amount": 999.00,
+  "delivery_date": "2026-08-20",
+  "reminders": "Intento de bypass",
+  "status": "confirmed"
+}
+
+### Editar una nota que SÍ está pendiente (debe funcionar)
+PUT {{baseUrl}}/supplier-notes/4
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "supplier_id": 1,
+  "total_amount": 550.00,
+  "delivery_date": "2026-08-16",
+  "reminders": "Actualizado correctamente"
+}
 ### Eliminar una nota
-DELETE {{baseUrl}}/supplier-notes/2
+DELETE {{baseUrl}}/supplier-notes/4
 Authorization: Bearer {{token}}
 Accept: application/json
 
@@ -580,7 +730,7 @@ Content-Type: image/jpeg
 --boundary--
 
 ### Confirmar entrada (actualiza stock)
-PUT {{baseUrl}}/supplier-notes/3/confirm
+PUT {{baseUrl}}/supplier-notes/2/confirm
 Authorization: Bearer {{token}}
 Content-Type: application/json
 Accept: application/json
@@ -590,6 +740,7 @@ Accept: application/json
     { "product_id": 6, "quantity_received": 10 }
   ]
 }
+
 ### Registrar pago
 PUT {{baseUrl}}/supplier-notes/3/pay
 Authorization: Bearer {{token}}
@@ -622,7 +773,8 @@ Accept: application/json
 GET {{baseUrl}}/cash-registers/1
 Authorization: Bearer {{token}}
 
-### Cerrar turno
+### Cerrar turno — revisa que total_efectivo_ventas y total_tarjeta_ventas
+### coincidan con la suma manual de lo que vendiste en las pruebas de arriba
 POST {{baseUrl}}/cash-registers/1/close
 Authorization: Bearer {{token}}
 Content-Type: application/json

@@ -9,7 +9,7 @@ use App\Mail\LowStockNotification;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
 
-class Stocknotificationcontroller extends Controller
+class StockNotificationController extends Controller
 {
     /**
      * Enviar notificación de stock bajo manualmente

@@ -9,9 +9,8 @@ use App\Models\User;
 
 class AuthController extends Controller
 {
-    //
-    public function login (Request $request){
-        //
+    public function login(Request $request)
+    {
         $validated = $request->validate([
             'email' => 'required|email',
             'password' => 'required|string',
@@ -23,8 +22,12 @@ class AuthController extends Controller
         }
 
         $user = Auth::user();
-         $token = $user->createToken('auth-token')->plainTextToken;
-            return response()->json(['message' => 'Usuario autenticado', 'token' => $token], 200);
-        
+        $token = $user->createToken('auth-token')->plainTextToken;
+
+        return response()->json([
+            'message' => 'Usuario autenticado',
+            'token' => $token,
+            'user' => $user->load('employee.role'),
+        ], 200);
     }
 }

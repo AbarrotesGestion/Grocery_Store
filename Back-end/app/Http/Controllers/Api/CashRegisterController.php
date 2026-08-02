@@ -75,32 +75,38 @@ class CashRegisterController extends Controller
         return response()->json(['message' => 'Turno abierto exitosamente', 'data' => $cashRegister], 201);
     }
 
-    public function close(Request $request)
-    {
+ public function close(Request $request)
+{
+    $closedCash = $request->validate([
+        'closed_cash' => 'required|numeric|min:0',
+    ]);
 
-        // repetir el mimo paso con open 
-        $closedCash = $request->validate([
-            'closed_cash' => 'required|numeric|min:0',
-        ]);
-
-        $turnoAbierto = CashRegister::where('employee_id', auth()->user()->employee->id)
-            ->whereNull('closed_at')
-            ->first();
-        if (!$turnoAbierto) {
-            return response()->json(['message' => 'No tienes un turno abierto para cerrar'], 400);
-        }
-
-        $totalEfectivo = Sale::where('cash_register_id', $turnoAbierto->id)
-            ->where('payment_method', 'cash')
-            ->sum('cash_amount');
-        $expectedCash = $turnoAbierto->opening_cash + $totalEfectivo;
-
-        $turnoAbierto->update([
-            // ¿qué campos actualizas aquí?
-            'closed_at' => now(),
-            'actual_cash' => $closedCash['closed_cash'],
-            'expected_cash' => $expectedCash,
-        ]);
-        return response()->json(['message' => 'Turno cerrado exitosamente', 'data' => $turnoAbierto], 200);
+    $turnoAbierto = CashRegister::where('employee_id', auth()->user()->employee->id)
+        ->whereNull('closed_at')
+        ->first();
+    if (!$turnoAbierto) {
+        return response()->json(['message' => 'No tienes un turno abierto para cerrar'], 400);
     }
+
+    // Sin filtrar por payment_method: cash_amount y card_amount
+    // ya vienen prorrateados por línea, sin importar el método del ticket.
+    $totalEfectivo = Sale::where('cash_register_id', $turnoAbierto->id)->sum('cash_amount');
+    $totalTarjeta = Sale::where('cash_register_id', $turnoAbierto->id)->sum('card_amount');
+
+    $expectedCash = $turnoAbierto->opening_cash + $totalEfectivo;
+
+    $turnoAbierto->update([
+        'closed_at' => now(),
+        'actual_cash' => $closedCash['closed_cash'],
+        'expected_cash' => $expectedCash,
+    ]);
+
+    return response()->json([
+        'message' => 'Turno cerrado exitosamente',
+        'data' => $turnoAbierto,
+        'total_efectivo_ventas' => $totalEfectivo,
+        'total_tarjeta_ventas' => $totalTarjeta,
+        'diferencia' => $closedCash['closed_cash'] - $expectedCash,
+    ], 200);
+}
 }

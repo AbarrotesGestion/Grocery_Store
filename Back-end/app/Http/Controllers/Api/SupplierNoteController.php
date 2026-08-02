@@ -83,25 +83,32 @@ class SupplierNoteController extends Controller
             'data' => $note
         ], 200);
     }
-    public function update(Request $request, $id)
-    {
-        $note = SupplierNote::findOrFail($id);
+public function update(Request $request, $id)
+{
+    $note = SupplierNote::findOrFail($id);
 
-        $validated = $request->validate([
-            'supplier_id' => 'required|exists:suppliers,id',
-            'total_amount' => 'required|numeric|min:0',
-            'delivery_date' => 'required|date',
-            'reminders' => 'nullable|string',
-            'status' => 'required|in:pending,confirmed,cancelled',
-        ]);
-
-        $note->update($validated);
-
+    // Solo se puede editar el contenido de una nota mientras sigue pendiente.
+    // Una vez confirmada o pagada, su historial no debe alterarse por aquí.
+    if ($note->status !== 'pending') {
         return response()->json([
-            'message' => 'Nota de proveedor actualizada exitosamente',
-            'data' => $note
-        ], 200);
+            'message' => 'Solo se pueden editar notas en estado pendiente. Usa /confirm o /pay para avanzar el estado.'
+        ], 400);
     }
+
+    $validated = $request->validate([
+        'supplier_id' => 'required|exists:suppliers,id',
+        'total_amount' => 'required|numeric|min:0',
+        'delivery_date' => 'required|date',
+        'reminders' => 'nullable|string',
+    ]);
+
+    $note->update($validated);
+
+    return response()->json([
+        'message' => 'Nota de proveedor actualizada exitosamente',
+        'data' => $note
+    ], 200);
+}
     public function destroy($id)
     {
         $note = SupplierNote::findOrFail($id);
