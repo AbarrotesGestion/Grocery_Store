@@ -115,6 +115,7 @@ Route::middleware(['auth:sanctum', 'role:Cajero,Administrador'])->group(function
 
 Route::middleware(['auth:sanctum', 'role:Administrador,Almacenista,Cajero'])->group(function () {
     Route::get('supplier-notes', [SupplierNoteController::class, 'index']);
+    Route::get('supplier-notes/historial', [SupplierNoteController::class, 'historial']);
     Route::get('supplier-notes/{id}', [SupplierNoteController::class, 'show']);
     Route::post('supplier-notes', [SupplierNoteController::class, 'store']);
     Route::put('supplier-notes/{id}', [SupplierNoteController::class, 'update']);

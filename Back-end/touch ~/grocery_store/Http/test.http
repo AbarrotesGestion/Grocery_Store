@@ -316,6 +316,8 @@ Authorization: Bearer {{token}}
 Accept: application/json
 
 
+
+
 ### ============================================================
 ### 📊 INVENTORY ADJUSTMENTS
 ### ============================================================
@@ -669,7 +671,7 @@ Accept: application/json
 }
 
 ### Ver una nota
-GET {{baseUrl}}/supplier-notes/4
+GET {{baseUrl}}/supplier-notes/3
 Authorization: Bearer {{token}}
 
 ### Actualizar una nota
@@ -746,6 +748,34 @@ PUT {{baseUrl}}/supplier-notes/3/pay
 Authorization: Bearer {{token}}
 Accept: application/json
 
+### Confirmar nota con observaciones
+PUT {{baseUrl}}/supplier-notes/8/confirm
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "products": [
+    { "product_id": 6, "quantity_received": 8 }
+  ],
+  "observations": "El proveedor solo trajo 8 de los 10 acordados, dijo que no tenía existencia y que completa la próxima semana."
+}
+
+### Verificar el historial
+GET {{baseUrl}}/supplier-notes/historial
+Authorization: Bearer {{token}}
+
+### Probar duplicados (debe rechazar con 422)
+PUT {{baseUrl}}/supplier-notes/6/confirm
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "products": [
+    { "product_id": 6, "quantity_received": 5 },
+    { "product_id": 6, "quantity_received": 3 }
+  ]
+}
 
 ### ============================================================
 ### 💵 CASH REGISTERS (Corte de Caja)
@@ -857,3 +887,5 @@ Accept: application/json
     { "nombre": "Producto Inventado XYZ", "cantidad": 5, "precio_unitario": 30.00 }
   ]
 }
+
+

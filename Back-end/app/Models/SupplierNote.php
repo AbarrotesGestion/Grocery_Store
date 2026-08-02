@@ -20,8 +20,18 @@ class SupplierNote extends Model
         'reminders',
         'created_by',
         'confirmed_by',
+        'observations',
+        'confirmed_at',
 
 
+    ];
+    /**
+     * The attributes that should be cast.
+     *
+     * @var array
+     */
+    protected $casts = [
+        'confirmed_at' => 'datetime',
     ];
     public function createdBy()
     {
@@ -33,12 +43,12 @@ class SupplierNote extends Model
         return $this->belongsTo(Employee::class, 'confirmed_by');
     }
 
-        public function supplier()
+    public function supplier()
     {
         return $this->belongsTo(Supplier::class, 'supplier_id');
     }
 
-        public function details()
+    public function details()
     {
         return $this->hasMany(SupplierNoteDetail::class, 'supplier_note_id');
     }

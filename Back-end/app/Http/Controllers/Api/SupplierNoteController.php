@@ -10,6 +10,9 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use App\Models\Product;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\SupplierNoteConfirmed;
+
 
 class SupplierNoteController extends Controller
 {
@@ -83,32 +86,32 @@ class SupplierNoteController extends Controller
             'data' => $note
         ], 200);
     }
-public function update(Request $request, $id)
-{
-    $note = SupplierNote::findOrFail($id);
+    public function update(Request $request, $id)
+    {
+        $note = SupplierNote::findOrFail($id);
 
-    // Solo se puede editar el contenido de una nota mientras sigue pendiente.
-    // Una vez confirmada o pagada, su historial no debe alterarse por aquí.
-    if ($note->status !== 'pending') {
+        // Solo se puede editar el contenido de una nota mientras sigue pendiente.
+        // Una vez confirmada o pagada, su historial no debe alterarse por aquí.
+        if ($note->status !== 'pending') {
+            return response()->json([
+                'message' => 'Solo se pueden editar notas en estado pendiente. Usa /confirm o /pay para avanzar el estado.'
+            ], 400);
+        }
+
+        $validated = $request->validate([
+            'supplier_id' => 'required|exists:suppliers,id',
+            'total_amount' => 'required|numeric|min:0',
+            'delivery_date' => 'required|date',
+            'reminders' => 'nullable|string',
+        ]);
+
+        $note->update($validated);
+
         return response()->json([
-            'message' => 'Solo se pueden editar notas en estado pendiente. Usa /confirm o /pay para avanzar el estado.'
-        ], 400);
+            'message' => 'Nota de proveedor actualizada exitosamente',
+            'data' => $note
+        ], 200);
     }
-
-    $validated = $request->validate([
-        'supplier_id' => 'required|exists:suppliers,id',
-        'total_amount' => 'required|numeric|min:0',
-        'delivery_date' => 'required|date',
-        'reminders' => 'nullable|string',
-    ]);
-
-    $note->update($validated);
-
-    return response()->json([
-        'message' => 'Nota de proveedor actualizada exitosamente',
-        'data' => $note
-    ], 200);
-}
     public function destroy($id)
     {
         $note = SupplierNote::findOrFail($id);
@@ -126,7 +129,7 @@ public function update(Request $request, $id)
             return response()->json(['message' => 'Empleado no encontrado'], 404);
         }
 
-        $note = SupplierNote::with('details.product')->findOrFail($id);
+        $note = SupplierNote::with(['details.product', 'supplier'])->findOrFail($id);
 
         if ($note->status !== 'pending') {
             return response()->json(['message' => 'Solo se pueden confirmar notas pendientes'], 400);
@@ -136,10 +139,22 @@ public function update(Request $request, $id)
             'products' => 'required|array|min:1',
             'products.*.product_id' => 'required|exists:products,id',
             'products.*.quantity_received' => 'required|integer|min:0',
+            'observations' => 'nullable|string|max:1000',
         ]);
+
+        // Rechazar product_id repetidos: si vinieran duplicados, el increment
+        // de stock correría dos veces sobre el mismo producto (bug silencioso).
+        $ids = array_column($validated['products'], 'product_id');
+        if (count($ids) !== count(array_unique($ids))) {
+            return response()->json([
+                'message' => 'Hay productos repetidos. Agrupa las cantidades en una sola línea por producto.'
+            ], 422);
+        }
 
         DB::beginTransaction();
         try {
+            $diferencias = [];
+
             foreach ($validated['products'] as $item) {
                 $detail = $note->details->firstWhere('product_id', $item['product_id']);
 
@@ -152,22 +167,57 @@ public function update(Request $request, $id)
 
                 $detail->update(['quantity_received' => $item['quantity_received']]);
                 Product::where('id', $item['product_id'])->increment('stock', $item['quantity_received']);
+
+                $diferencias[] = [
+                    'producto' => $detail->product->name ?? "ID {$item['product_id']}",
+                    'pactado' => $detail->quantity_agreed,
+                    'recibido' => $item['quantity_received'],
+                    'diferencia' => $item['quantity_received'] - $detail->quantity_agreed,
+                ];
             }
+
             $note->update([
                 'status' => 'confirmed',
                 'confirmed_by' => $employee->id,
+                'confirmed_at' => now(),
+                'observations' => $validated['observations'] ?? null,
             ]);
 
             DB::commit();
-            return response()->json(['message' => 'Nota confirmada y stock actualizado', 'data' => $note->fresh('details.product')], 200);
+
+
+            $this->notificarAlDueno($note, $diferencias, $validated['observations'] ?? null, $employee);
+
+            return response()->json([
+                'message' => 'Nota confirmada y stock actualizado',
+                'diferencias' => $diferencias,
+                'data' => $note->fresh(['details.product', 'supplier']),
+            ], 200);
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json(['error' => $e->getMessage()], 500);
         }
     }
 
+    private function notificarAlDueno($note, array $diferencias, ?string $observaciones, $employee): void
+    {
+        try {
+            $admins = \App\Models\User::whereHas('employee.role', function ($q) {
+                $q->where('name', 'Administrador');
+            })->get();
 
-
+            foreach ($admins as $admin) {
+                \Illuminate\Support\Facades\Mail::to($admin->email)->send(
+                    new \App\Mail\SupplierNoteConfirmed($note, $diferencias, $observaciones, $employee)
+                );
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Error al notificar confirmación de nota', [
+                'note_id' => $note->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
     public function scan(Request $request)
     {
         $request->validate([
@@ -220,7 +270,6 @@ public function update(Request $request, $id)
                 'text' => $text
             ]);
 
-            // 🔧 Limpieza de markdown que Gemini agrega a veces
             $clean = preg_replace('/```json\s*/i', '', $text);
             $clean = preg_replace('/```\s*/i', '', $clean);
             $clean = trim($clean);
@@ -242,7 +291,15 @@ public function update(Request $request, $id)
 
 
 
+    public function historial()
+    {
+        $notes = SupplierNote::with(['supplier', 'details.product', 'confirmedBy'])
+            ->whereIn('status', ['confirmed', 'paid'])
+            ->orderBy('confirmed_at', 'desc')
+            ->get();
 
+        return response()->json(['data' => $notes], 200);
+    }
     public function pay($id)
     {
         $note = SupplierNote::findOrFail($id);
