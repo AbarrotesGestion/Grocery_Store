@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Product;
 use App\Models\Category;
+use App\Models\ProductSupplierCode;
 
 class ProductController extends Controller
 {
@@ -171,8 +172,10 @@ class ProductController extends Controller
     public function match(Request $request)
     {
         $validated = $request->validate([
+            'supplier_id' => 'required|exists:suppliers,id',
             'products' => 'required|array|min:1',
             'products.*.nombre' => 'required|string',
+            'products.*.codigo' => 'nullable|string',
             'products.*.cantidad' => 'nullable|numeric',
             'products.*.precio_unitario' => 'nullable|numeric',
         ]);
@@ -180,30 +183,62 @@ class ProductController extends Controller
         $matched = [];
         $unmatched = [];
 
+        // Códigos de ESTE proveedor específico, indexados por código
+        $codigosDelProveedor = \App\Models\ProductSupplierCode::where('supplier_id', $validated['supplier_id'])
+            ->with('product')
+            ->get()
+            ->keyBy('code');
+
+        $porNombre = Product::all()->keyBy(fn($p) => strtolower(trim($p->name)));
+
         foreach ($validated['products'] as $item) {
-            $nombreBuscado = strtolower(trim($item['nombre']));
+            $producto = null;
+            $matchedBy = null;
 
-            // PASO 1: buscar el producto con whereRaw como te expliqué
-            $producto = Product::whereRaw('LOWER(name) = ?', [$nombreBuscado])->first();
+            // 1. Código exacto, DENTRO del catálogo de códigos de este proveedor
+            if (!empty($item['codigo']) && $codigosDelProveedor->has($item['codigo'])) {
+                $producto = $codigosDelProveedor->get($item['codigo'])->product;
+                $matchedBy = 'codigo';
+            }
 
-            // PASO 2: si $producto existe, agregarlo a $matched con su id y nombre
+            // 2. Respaldo: nombre exacto en todo el catálogo
+            if (!$producto) {
+                $nombreLimpio = strtolower(trim($item['nombre']));
+                if ($porNombre->has($nombreLimpio)) {
+                    $producto = $porNombre->get($nombreLimpio);
+                    $matchedBy = 'nombre';
+                }
+            }
+
             if ($producto) {
                 $matched[] = [
                     'id' => $producto->id,
                     'name' => $producto->name,
+                    'matched_by' => $matchedBy,
                     'cantidad' => $item['cantidad'] ?? null,
                     'precio_unitario' => $item['precio_unitario'] ?? null,
                 ];
-            }
-            // PASO 3: si no existe, agregarlo a $unmatched con el nombre original
-            else {
+            } else {
                 $unmatched[] = $item['nombre'];
             }
         }
 
-        return response()->json([
-            'matched' => $matched,
-            'unmatched' => $unmatched,
+        return response()->json(['matched' => $matched, 'unmatched' => $unmatched]);
+    }
+
+    public function storeSupplierCode(Request $request)
+    {
+        $validated = $request->validate([
+            'product_id' => 'required|exists:products,id',
+            'supplier_id' => 'required|exists:suppliers,id',
+            'code' => 'required|string|max:50',
         ]);
+
+        $entry = \App\Models\ProductSupplierCode::updateOrCreate(
+            ['supplier_id' => $validated['supplier_id'], 'code' => $validated['code']],
+            ['product_id' => $validated['product_id']]
+        );
+
+        return response()->json(['message' => 'Código registrado', 'data' => $entry], 201);
     }
 }

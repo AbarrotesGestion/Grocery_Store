@@ -74,6 +74,7 @@ Route::middleware(['auth:sanctum', 'role:Almacenista,Administrador,Cajero'])->gr
     Route::post('products/{id}/restore', [ProductController::class, 'restore']);
     Route::delete('products/{id}/force-delete', [ProductController::class, 'forceDelete']);
     Route::post('products/match', [ProductController::class, 'match']);
+    Route::post('product-supplier-codes', [ProductController::class, 'storeSupplierCode']);
     Route::apiResource('products', ProductController::class);
 });
 

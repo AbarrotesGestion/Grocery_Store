@@ -74,4 +74,9 @@ class Product extends Model
     {
         return $this->stock >= $quantity;
     }
+
+    public function supplierCodes()
+{
+    return $this->hasMany(ProductSupplierCode::class);
+}
 }
