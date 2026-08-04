@@ -133,7 +133,11 @@ class SaleController extends Controller
             }
 
             DB::commit();
-            Log::info('Venta registrada: grupo ' . $saleGroupId);
+            try {
+                Log::info('Venta registrada: ' . $saleGroupId);
+            } catch (\Throwable $e) {
+                // Un fallo de logging nunca debe afectar la respuesta al cliente.
+            }
 
             return response()->json([
                 'message' => 'Venta registrada exitosamente',
@@ -142,6 +146,10 @@ class SaleController extends Controller
                 'change_amount' => $changeAmount,
                 'data' => $createdSales,
             ], 201);
+
+            if (DB::transactionLevel() > 0) {
+                DB::rollBack();
+            }
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Error al registrar venta: ' . $e->getMessage());
