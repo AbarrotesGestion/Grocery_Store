@@ -1,0 +1,197 @@
+<?php
+
+use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\ProductController;
+use App\Http\Controllers\CategoryController;
+use App\Http\Controllers\SaleController;
+use App\Http\Controllers\EmployeeController;
+use App\Http\Controllers\ClientController;
+use App\Http\Controllers\ClientDebtController;
+use App\Http\Controllers\SupplierController;
+use App\Http\Controllers\SupplierDebtController;
+use App\Http\Controllers\InventoryAdjustmentController;
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\PdfController;
+use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\MediaController;
+use App\Http\Controllers\StockNotificationController;
+
+/*
+|--------------------------------------------------------------------------
+| Rutas Públicas
+|--------------------------------------------------------------------------
+*/
+
+Route::get('/', function () {
+    return view('welcome');
+});
+
+Route::get('/home', function () {
+    return view('home');
+})->name('home');
+
+/*
+|--------------------------------------------------------------------------
+| Rutas Autenticadas con Control de Roles
+|--------------------------------------------------------------------------
+*/
+
+Route::middleware(['auth', 'verified'])->group(function () {
+
+
+    Route::get('admin/media', [MediaController::class, 'index'])->name('media.index');
+    Route::post('admin/media', [MediaController::class, 'store'])->name('media.store');
+    Route::delete('admin/media/{id}', [MediaController::class, 'destroy'])->name('media.destroy');
+
+    // ==================== PERFIL ====================
+    // Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
+    // Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    // Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+
+    // ==================== CATEGORÍAS ====================
+    // Ver: Todos
+    // 1. Primero la ruta de crear
+    Route::get('categories/create', [CategoryController::class, 'create'])->name('categories.create');
+
+    // 2. Después la ruta con parámetro
+    Route::get('categories/{category}', [CategoryController::class, 'show'])->name('categories.show');
+
+    // La de index puede ir en cualquier lugar, pero usualmente va al inicio
+    Route::get('categories', [CategoryController::class, 'index'])->name('categories.index');
+
+    // Crear/Editar: Solo Almacenista y Admin
+    Route::middleware(['role:Almacenista,Administrador'])->group(function () {
+        Route::get('categories/create', [CategoryController::class, 'create'])->name('categories.create');
+        Route::post('categories', [CategoryController::class, 'store'])->name('categories.store');
+        Route::get('categories/{category}/edit', [CategoryController::class, 'edit'])->name('categories.edit');
+        Route::put('categories/{category}', [CategoryController::class, 'update'])->name('categories.update');
+        Route::delete('categories/{category}', [CategoryController::class, 'destroy'])->name('categories.destroy');
+    });
+
+    // ==================== PRODUCTOS ====================
+    // Solo Almacenista y Admin
+ Route::middleware(['role:Almacenista,Administrador'])->group(function () {
+    Route::resource('products', ProductController::class);
+    
+    // Papelera
+    Route::get('/products-trashed', [ProductController::class, 'trashed'])
+        ->name('products.trashed');
+    
+    // Restaurar producto
+    Route::post('/products/{id}/restore', [ProductController::class, 'restore'])
+        ->name('products.restore');
+    
+    // Eliminar permanentemente (solo admin)
+    Route::delete('/products/{id}/force-delete', [ProductController::class, 'forceDelete'])
+        ->name('products.force-delete')
+        ->middleware('role:Administrador');
+});
+
+
+
+
+Route::middleware(['auth', 'role:Administrador'])->group(function () {
+    Route::prefix('media')->name('media.')->group(function () {
+        Route::get('/', [MediaController::class, 'index'])->name('index');
+        Route::post('/', [MediaController::class, 'store'])->name('store');
+        Route::post('/{id}/toggle', [MediaController::class, 'toggleActive'])->name('toggle');
+        Route::delete('/{id}', [MediaController::class, 'destroy'])->name('destroy');
+    });
+});
+    // ==================== PROVEEDORES ====================
+    // Solo Almacenista y Admin
+    Route::middleware(['role:Almacenista,Administrador'])->group(function () {
+        Route::resource('suppliers', SupplierController::class);
+    });
+
+    // ==================== AJUSTES DE INVENTARIO ====================
+    // Solo Almacenista y Admin
+    Route::middleware(['role:Almacenista,Administrador'])->group(function () {
+        Route::resource('inventory_adjustments', InventoryAdjustmentController::class)
+            ->only(['index', 'create', 'store', 'show', 'destroy', 'edit', 'update']);
+    });
+
+    // ==================== DASHBOARD ====================
+    Route::middleware(['role:Administrador'])->group(function () {
+        Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    });
+    // ==================== VENTAS ====================
+    // Solo Cajero y Admin
+    Route::middleware(['role:Cajero,Administrador'])->group(function () {
+        Route::resource('sales', SaleController::class);
+         // Rutas de cancelación
+    Route::post('/sales/{id}/cancel', [SaleController::class, 'cancel'])
+        ->name('sales.cancel');
+    
+    // Solo admin puede revertir (opcional)
+    Route::post('/sales/{id}/revert', [SaleController::class, 'revert'])
+        ->name('sales.revert')
+        ->middleware('role:Administrador');
+    });
+
+    // routes/web.php
+
+    // ==================== CLIENTES ====================
+    // Solo Cajero y Admin
+    Route::middleware(['role:Cajero,Administrador'])->group(function () {
+        Route::resource('clients', ClientController::class);
+    });
+
+    // ==================== DEUDAS DE CLIENTES ====================
+    // Solo Cajero y Admin
+    Route::middleware(['role:Cajero,Administrador'])->group(function () {
+        Route::resource('client_debts', ClientDebtController::class);
+    });
+
+    // ==================== DEUDAS DE PROVEEDORES ====================
+    // Solo Administrador
+    Route::middleware(['role:Administrador'])->group(function () {
+        Route::resource('supplier_debts', SupplierDebtController::class);
+    });
+
+    // ==================== EMPLEADOS ====================
+    // Solo Administrador
+    Route::middleware(['role:Administrador'])->group(function () {
+        Route::resource('employees', EmployeeController::class);
+    });
+
+    // ==================== PDFs ====================
+    Route::prefix('pdf')->name('pdf.')->group(function () {
+        // Todos pueden generar PDF de venta
+        Route::get('/venta/{id}', [PdfController::class, 'generarVenta'])->name('venta');
+
+        // Solo Admin para reportes generales
+        Route::middleware(['role:Administrador'])->group(function () {
+            Route::get('/ventas-diarias', [PdfController::class, 'reporteVentasDiarias'])->name('ventas.diarias');
+            Route::get('/inventario', [PdfController::class, 'reporteInventario'])->name('inventario');
+            Route::get('/deudas-clientes', [PdfController::class, 'reporteDeudasClientes'])->name('deudas.clientes');
+            Route::get('/productos-bajo-stock', [PdfController::class, 'reporteProductosBajoStock'])->name('productos.bajo.stock');
+        });
+
+        // Cajero y Admin para cliente específico
+        Route::middleware(['role:Cajero,Administrador'])->group(function () {
+            Route::get('/cliente/{id}', [PdfController::class, 'reporteCliente'])->name('cliente');
+        });
+
+        // Notificaciones de Stock
+    });
+
+    Route::middleware(['auth'])->group(function () {
+    // Si tu middleware de rol se llama 'role', asegúrate que esté registrado. 
+    // Si te da error, intenta quitar el 'role:Administrador' solo para probar.
+    Route::get('/admin/low-stock', [StockNotificationController::class, 'showLowStockProducts'])
+        ->name('stock.low-stock');
+    
+    Route::post('/admin/send-stock-notification', [StockNotificationController::class, 'sendLowStockNotification'])
+        ->name('stock.send-notification');
+});
+
+    // ==================== REPORTES HTML ====================
+    // Solo Administrador
+    Route::middleware(['role:Administrador'])->prefix('reportes')->name('reportes.')->group(function () {
+        Route::get('/ventas', [DashboardController::class, 'reporteVentas'])->name('ventas');
+        Route::get('/productos', [DashboardController::class, 'reporteProductos'])->name('productos');
+        Route::get('/clientes', [DashboardController::class, 'reporteClientes'])->name('clientes');
+        Route::get('/deudas', [DashboardController::class, 'reporteDeudas'])->name('deudas');
+    });
+});
