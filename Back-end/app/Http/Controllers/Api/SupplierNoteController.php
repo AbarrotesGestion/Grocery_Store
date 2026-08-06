@@ -220,10 +220,18 @@ class SupplierNoteController extends Controller
             })->get();
 
             foreach ($admins as $admin) {
-                \Illuminate\Support\Facades\Mail::to($admin->email)->send(
-                    new \App\Mail\SupplierNoteConfirmed($note, $diferencias, $observaciones, $employee)
-                );
-                usleep(500000); // Evita el rate limit de Mailtrap (1 correo/segundo en plan gratuito)
+                try {
+                    Mail::to($admin->email)->send(
+                        new \App\Mail\SupplierNoteConfirmed($note, $diferencias, $observaciones, $employee)
+                    );
+                } catch (\Throwable $e) {
+                    \Illuminate\Support\Facades\Log::error('Error al notificar a un administrador', [
+                        'note_id' => $note->id,
+                        'email' => $admin->email,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+                usleep(500000);
             }
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::error('Error al notificar confirmación de nota', [
@@ -334,7 +342,7 @@ class SupplierNoteController extends Controller
     }
 
 
-private function notificarAlmacenista($note, $employee): void
+    private function notificarAlmacenista($note, $employee): void
     {
         try {
             $almacenistas = \App\Models\User::whereHas('employee.role', function ($q) {
@@ -342,10 +350,16 @@ private function notificarAlmacenista($note, $employee): void
             })->get();
 
             foreach ($almacenistas as $u) {
-                \Illuminate\Support\Facades\Mail::to($u->email)->send(
-                    new \App\Mail\SupplierNoteCreated($note, $employee)
-                );
-                usleep(500000); // Evita el rate limit de Mailtrap (1 correo/segundo en plan gratuito)
+                try {
+                    Mail::to($u->email)->send(new \App\Mail\SupplierNoteCreated($note, $employee));
+                } catch (\Throwable $e) {
+                    \Illuminate\Support\Facades\Log::error('Error al notificar a un almacenista', [
+                        'note_id' => $note->id,
+                        'email' => $u->email,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+                usleep(500000);
             }
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::error('Error al notificar nota nueva al almacenista', [
@@ -354,6 +368,4 @@ private function notificarAlmacenista($note, $employee): void
             ]);
         }
     }
-
-    
 }
