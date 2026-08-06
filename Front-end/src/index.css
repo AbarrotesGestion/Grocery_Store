@@ -1,0 +1,19 @@
+@import "tailwindcss";
+
+/* 🎨 Configuración de la Paleta de Colores para Tailwind v4 */
+/* @theme {
+  --color-dark-bg: #0B131A;
+  --color-dark-card: #111C24;
+  --color-aqua-blue: #00FFFF;
+  --color-ghost-blue: #80C4DE;
+  --color-dark-border: #1A2B36;
+} */
+
+@theme {
+  --color-dark-bg: #0C1117;
+  --color-dark-card: #161D26;
+  --color-neo-mint: #8BF2E6;
+  --color-petroleo: #3A5A78;
+  --color-dark-border: #222C3A;
+  --color-gris-calido: #A0AAB5;
+}
