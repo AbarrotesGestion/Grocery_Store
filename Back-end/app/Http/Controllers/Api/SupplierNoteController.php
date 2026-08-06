@@ -18,79 +18,79 @@ class SupplierNoteController extends Controller
 {
     //
 
-public function index(Request $request)
-{
-    $notes = SupplierNote::with(['supplier', 'details.product', 'createdBy', 'confirmedBy'])
-        ->when($request->status, function ($query, $status) {
-            $query->where('status', $status);
-        })
-        ->orderBy('created_at', 'desc')
-        ->get();
-
-    return response()->json([
-        'data' => $notes
-    ], 200);
-}
-
-
-public function store(Request $request)
-{
-    $employee = auth()->user()->employee;
-    if (!$employee) {
-        return response()->json(['message' => 'Empleado no encontrado'], 404);
-    }
-
-    $validated = $request->validate([
-        'supplier_id' => 'required|exists:suppliers,id',
-        'total_amount' => 'required|numeric|min:0',
-        'delivery_date' => 'required|date',
-        'reminders' => 'nullable|string',
-        'products' => 'required|array|min:1',
-        'products.*.product_id' => 'required|exists:products,id',
-        'products.*.quantity_agreed' => 'required|integer|min:1',
-        'products.*.price_agreed' => 'required|numeric|min:0',
-        'products.*.discount' => 'nullable|numeric|min:0',
-        'products.*.is_gift' => 'nullable|boolean',
-    ]);
-
-    DB::beginTransaction();
-    try {
-        $note = SupplierNote::create([
-            'supplier_id' => $validated['supplier_id'],
-            'total_amount' => $validated['total_amount'],
-            'delivery_date' => $validated['delivery_date'],
-            'reminders' => $validated['reminders'] ?? null,
-            'status' => 'pending',
-            'created_by' => $employee->id,
-        ]);
-
-        foreach ($validated['products'] as $product) {
-            SupplierNoteDetail::create([
-                'supplier_note_id' => $note->id,
-                'product_id' => $product['product_id'],
-                'quantity_agreed' => $product['quantity_agreed'],
-                'price_agreed' => $product['price_agreed'],
-                'discount' => $product['discount'] ?? 0,
-                'is_gift' => $product['is_gift'] ?? false,
-            ]);
-        }
-
-        DB::commit();
-
-        // Fuera de la transacción, con su propio try-catch dentro del método:
-        // un fallo de correo nunca debe afectar la respuesta ni revertir
-        // la nota, que ya se guardó correctamente.
-        $this->notificarAlmacenista($note->fresh(['supplier', 'details.product']), $employee);
+    public function index(Request $request)
+    {
+        $notes = SupplierNote::with(['supplier', 'details.product', 'createdBy', 'confirmedBy'])
+            ->when($request->status, function ($query, $status) {
+                $query->where('status', $status);
+            })
+            ->orderBy('created_at', 'desc')
+            ->get();
 
         return response()->json([
-            'message' => 'Nota de proveedor creada exitosamente',
-            'data' => $note->fresh(['supplier', 'details.product']),
-        ], 201);
-    } catch (\Exception $e) {
-        DB::rollBack();
-        return response()->json(['error' => $e->getMessage()], 500);
+            'data' => $notes
+        ], 200);
     }
-}
+
+
+    public function store(Request $request)
+    {
+        $employee = auth()->user()->employee;
+        if (!$employee) {
+            return response()->json(['message' => 'Empleado no encontrado'], 404);
+        }
+
+        $validated = $request->validate([
+            'supplier_id' => 'required|exists:suppliers,id',
+            'total_amount' => 'required|numeric|min:0',
+            'delivery_date' => 'required|date',
+            'reminders' => 'nullable|string',
+            'products' => 'required|array|min:1',
+            'products.*.product_id' => 'required|exists:products,id',
+            'products.*.quantity_agreed' => 'required|integer|min:1',
+            'products.*.price_agreed' => 'required|numeric|min:0',
+            'products.*.discount' => 'nullable|numeric|min:0',
+            'products.*.is_gift' => 'nullable|boolean',
+        ]);
+
+        DB::beginTransaction();
+        try {
+            $note = SupplierNote::create([
+                'supplier_id' => $validated['supplier_id'],
+                'total_amount' => $validated['total_amount'],
+                'delivery_date' => $validated['delivery_date'],
+                'reminders' => $validated['reminders'] ?? null,
+                'status' => 'pending',
+                'created_by' => $employee->id,
+            ]);
+
+            foreach ($validated['products'] as $product) {
+                SupplierNoteDetail::create([
+                    'supplier_note_id' => $note->id,
+                    'product_id' => $product['product_id'],
+                    'quantity_agreed' => $product['quantity_agreed'],
+                    'price_agreed' => $product['price_agreed'],
+                    'discount' => $product['discount'] ?? 0,
+                    'is_gift' => $product['is_gift'] ?? false,
+                ]);
+            }
+
+            DB::commit();
+
+            // Fuera de la transacción, con su propio try-catch dentro del método:
+            // un fallo de correo nunca debe afectar la respuesta ni revertir
+            // la nota, que ya se guardó correctamente.
+            $this->notificarAlmacenista($note->fresh(['supplier', 'details.product']), $employee);
+
+            return response()->json([
+                'message' => 'Nota de proveedor creada exitosamente',
+                'data' => $note->fresh(['supplier', 'details.product']),
+            ], 201);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
 
     public function show($id)
     {
@@ -223,6 +223,7 @@ public function store(Request $request)
                 \Illuminate\Support\Facades\Mail::to($admin->email)->send(
                     new \App\Mail\SupplierNoteConfirmed($note, $diferencias, $observaciones, $employee)
                 );
+                usleep(500000); // Evita el rate limit de Mailtrap (1 correo/segundo en plan gratuito)
             }
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::error('Error al notificar confirmación de nota', [
@@ -231,6 +232,7 @@ public function store(Request $request)
             ]);
         }
     }
+
     public function scan(Request $request)
     {
         $request->validate([
@@ -267,12 +269,12 @@ public function store(Request $request)
                             ],
                             [
                                 'type' => 'text',
-'text' => 'Analiza este ticket de proveedor y extrae todos los productos. '
-    . 'Para cada producto busca si tiene un código o clave impresa junto al nombre '
-    . '(usualmente un número de varios dígitos que aparece antes o junto a la descripción '
-    . 'del producto, distinto del precio). Devuelve SOLO un array JSON con los campos: '
-    . 'nombre, codigo (o null si no detectas ninguno), cantidad, precio_unitario. '
-    . 'Sin texto adicional, sin markdown, solo el JSON.'
+                                'text' => 'Analiza este ticket de proveedor y extrae todos los productos. '
+                                    . 'Para cada producto busca si tiene un código o clave impresa junto al nombre '
+                                    . '(usualmente un número de varios dígitos que aparece antes o junto a la descripción '
+                                    . 'del producto, distinto del precio). Devuelve SOLO un array JSON con los campos: '
+                                    . 'nombre, codigo (o null si no detectas ninguno), cantidad, precio_unitario. '
+                                    . 'Sin texto adicional, sin markdown, solo el JSON.'
                             ]
                         ]
                     ]
@@ -333,22 +335,25 @@ public function store(Request $request)
 
 
 private function notificarAlmacenista($note, $employee): void
-{
-    try {
-        $almacenistas = \App\Models\User::whereHas('employee.role', function ($q) {
-            $q->where('name', 'Almacenista');
-        })->get();
+    {
+        try {
+            $almacenistas = \App\Models\User::whereHas('employee.role', function ($q) {
+                $q->where('name', 'Almacenista');
+            })->get();
 
-        foreach ($almacenistas as $u) {
-            \Illuminate\Support\Facades\Mail::to($u->email)->send(
-                new \App\Mail\SupplierNoteCreated($note, $employee)
-            );
+            foreach ($almacenistas as $u) {
+                \Illuminate\Support\Facades\Mail::to($u->email)->send(
+                    new \App\Mail\SupplierNoteCreated($note, $employee)
+                );
+                usleep(500000); // Evita el rate limit de Mailtrap (1 correo/segundo en plan gratuito)
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Error al notificar nota nueva al almacenista', [
+                'note_id' => $note->id,
+                'error' => $e->getMessage(),
+            ]);
         }
-    } catch (\Throwable $e) {
-        \Illuminate\Support\Facades\Log::error('Error al notificar nota nueva al almacenista', [
-            'note_id' => $note->id,
-            'error' => $e->getMessage(),
-        ]);
     }
-}
+
+    
 }
