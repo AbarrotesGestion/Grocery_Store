@@ -231,7 +231,7 @@ class SupplierNoteController extends Controller
                         'error' => $e->getMessage(),
                     ]);
                 }
-                usleep(500000);
+                usleep(1500000);
             }
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::error('Error al notificar confirmación de nota', [
@@ -359,7 +359,7 @@ class SupplierNoteController extends Controller
                         'error' => $e->getMessage(),
                     ]);
                 }
-                usleep(500000);
+                usleep(1500000);
             }
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::error('Error al notificar nota nueva al almacenista', [
