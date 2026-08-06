@@ -911,6 +911,8 @@ Accept: application/json
   "card_amount": 0
 }
 
+
+
 ### Ticket de 2 productos, pago mixto con cambio
 POST {{baseUrl}}/sales
 Authorization: Bearer {{token}}
@@ -925,4 +927,115 @@ Content-Type: application/json
   "payment_method": "mixed",
   "cash_amount": 30.00,
   "card_amount": 30.00
+}
+
+###
+
+GET {{baseUrl}}/supplier-notes?status=pending
+Authorization: Bearer {{token}}
+Accept: application/json
+
+###
+
+GET {{baseUrl}}/supplier-notes
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### Proveedor 1 le pone el código "2781" al Arroz
+POST {{baseUrl}}/product-supplier-codes
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "product_id": 6,
+  "supplier_id": 1,
+  "code": "2781"
+}
+
+### Proveedor 7 le pone el código "9034" al MISMO Arroz
+POST {{baseUrl}}/product-supplier-codes
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "product_id": 6,
+  "supplier_id": 7,
+  "code": "9034"
+}
+
+### Match como si fuera un ticket del proveedor 1
+POST {{baseUrl}}/products/match
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "supplier_id": 1,
+  "products": [
+    { "nombre": "ARROZ", "codigo": "2781", "cantidad": 10, "precio_unitario": 12.5 }
+  ]
+}
+
+### Match como si fuera un ticket del proveedor 7, con SU código distinto
+POST {{baseUrl}}/products/match
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "supplier_id": 7,
+  "products": [
+    { "nombre": "ARROZ", "codigo": "9034", "cantidad": 10, "precio_unitario": 12.5 }
+  ]
+}
+
+
+
+
+
+
+
+
+### Proveedor 1 usa el código "5000" para el Frijol
+POST {{baseUrl}}/product-supplier-codes
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "product_id": 7,
+  "supplier_id": 1,
+  "code": "5000"
+}
+
+### Proveedor 7 usa ESE MISMO código "5000" pero para la Coca Cola
+POST {{baseUrl}}/product-supplier-codes
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "product_id": 12,
+  "supplier_id": 7,
+  "code": "5000"
+}
+
+### Ticket del proveedor 1 con código "5000" — debe dar Frijol (id: 7)
+POST {{baseUrl}}/products/match
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "supplier_id": 1,
+  "products": [
+    { "nombre": "FRIJOL", "codigo": "5000", "cantidad": 5, "precio_unitario": 26 }
+  ]
+}
+
+### Ticket del proveedor 7 con el MISMO código "5000" — debe dar Coca Cola (id: 12), NO Frijol
+POST {{baseUrl}}/products/match
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "supplier_id": 7,
+  "products": [
+    { "nombre": "COCA", "codigo": "5000", "cantidad": 5, "precio_unitario": 38 }
+  ]
 }
