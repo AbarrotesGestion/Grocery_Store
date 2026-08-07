@@ -6,28 +6,23 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Role;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class RoleController extends Controller
 {
-    //
-
     public function index()
     {
-        //
         $roles = Role::all();
         return response()->json($roles);
     }
-    /**
-     * Store a newly created resource in storage.
-     */
+
     public function store(Request $request)
     {
-        //
-
         $validate = $request->validate([
             'name' => 'required|string|max:255',
             'description' => 'required|string|max:255',
         ]);
+
         DB::beginTransaction();
         try {
             $role = Role::create($validate);
@@ -38,29 +33,18 @@ class RoleController extends Controller
             ], 201);
         } catch (\Exception $e) {
             DB::rollback();
-            return response()->json([
-                'error' => 'Error al crear el rol: ' . $e->getMessage()
-            ], 500);
+            Log::error('Error al crear rol', ['error' => $e->getMessage()]);
+            return response()->json(['error' => 'Error al crear el rol'], 500);
         }
     }
-    /**
-     * Display the specified resource.
-     */
-    /**
-     * Show the form for editing the specified resource.
-     */
 
-
-    /**
-     * Update the specified resource in storage.
-     */
     public function update(Request $request, string $id)
     {
-        //
         $validate = $request->validate([
             'name' => 'required|string|max:255',
             'description' => 'required|string|max:255',
         ]);
+
         DB::beginTransaction();
         try {
             $role = Role::findOrFail($id);
@@ -69,24 +53,33 @@ class RoleController extends Controller
             return response()->json(['message' => 'Rol actualizado exitosamente']);
         } catch (\Exception $e) {
             DB::rollBack();
-            return response()->json(['error' => 'Error al actualizar el rol: ' . $e->getMessage()], 500);
+            Log::error('Error al actualizar rol', ['id' => $id, 'error' => $e->getMessage()]);
+            return response()->json(['error' => 'Error al actualizar el rol'], 500);
         }
     }
 
     /**
-     * Remove the specified resource from storage.
+     * FIX: antes esto borraba el rol sin verificar si había empleados
+     * asignados. Todos tus demás controladores de entidad referenciada
+     * (Category, Client, Supplier) sí bloquean el borrado en ese caso —
+     * aquí faltaba el mismo criterio.
      */
     public function destroy(string $id)
     {
-        //
         try {
-            DB::transaction(function () use ($id) {
-                $role = Role::findOrFail($id);
-                $role->delete();
-            });
+            $role = Role::findOrFail($id);
+
+            if ($role->employees()->exists()) {
+                return response()->json([
+                    'message' => 'No se puede eliminar el rol porque hay empleados asignados a él'
+                ], 409);
+            }
+
+            $role->delete();
             return response()->json(['message' => 'Rol eliminado exitosamente']);
         } catch (\Exception $e) {
-            return response()->json(['error' => 'Error al eliminar el rol: ' . $e->getMessage()], 500);
+            Log::error('Error al eliminar rol', ['id' => $id, 'error' => $e->getMessage()]);
+            return response()->json(['error' => 'Error al eliminar el rol'], 500);
         }
     }
 }
