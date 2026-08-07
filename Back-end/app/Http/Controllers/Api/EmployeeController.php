@@ -8,6 +8,7 @@ use App\Models\Employee;
 use App\Models\User;
 use App\Models\Role;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class EmployeeController extends Controller
@@ -76,7 +77,8 @@ class EmployeeController extends Controller
             ], 201);
         } catch (\Exception $e) {
             DB::rollBack();
-            return response()->json(['error' => 'Error al crear empleado: ' . $e->getMessage()], 400);
+            Log::error('Error al crear empleado', ['error' => $e->getMessage()]);
+            return response()->json(['error' => 'Error al crear el empleado. Verifica los datos e intenta de nuevo.'], 400);
         }
     }
 
@@ -123,7 +125,8 @@ class EmployeeController extends Controller
             return response()->json(['message' => 'Empleado actualizado exitosamente']);
         } catch (\Exception $e) {
             DB::rollBack();
-            return response()->json(['error' => 'Error al actualizar empleado: ' . $e->getMessage()], 400);
+            Log::error('Error al actualizar empleado', ['id' => $id, 'error' => $e->getMessage()]);
+            return response()->json(['error' => 'Error al actualizar el empleado. Verifica los datos e intenta de nuevo.'], 400);
         }
     }
 

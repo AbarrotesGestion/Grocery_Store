@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use App\Models\Product;
 use App\Models\Category;
 use App\Models\ProductSupplierCode;
+use Illuminate\Support\Facades\Log;
 
 class ProductController extends Controller
 {
@@ -120,8 +121,8 @@ class ProductController extends Controller
             $product->delete();
             return response()->json(['message' => 'Producto eliminado correctamente']);
         } catch (\Exception $e) {
-
-            return response()->json(['error' => 'Error al eliminar: ' . $e->getMessage()], 500);
+            Log::error('Error al eliminar producto', ['id' => $id, 'error' => $e->getMessage()]);
+            return response()->json(['error' => 'Error al eliminar el producto'], 500);
         }
     }
 

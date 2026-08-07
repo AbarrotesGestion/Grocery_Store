@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use App\Models\InventoryAdjustment;
 use App\Models\Product;
 
@@ -106,6 +107,7 @@ class InventoryAdjustmentController extends Controller
             return response()->json(['message' => 'Ajuste actualizado exitosamente']);
         } catch (\Exception $e) {
             DB::rollBack();
+            Log::error('Error al actualizar ajuste de inventario', ['id' => $id, 'error' => $e->getMessage()]);
             return response()->json(['error' => 'Error al actualizar el ajuste'], 500);
         }
     }
@@ -134,6 +136,7 @@ class InventoryAdjustmentController extends Controller
             return response()->json(['message' => 'Ajuste de inventario eliminado correctamente']);
         } catch (\Exception $e) {
             DB::rollBack();
+            Log::error('Error al eliminar ajuste de inventario', ['id' => $id, 'error' => $e->getMessage()]);
             return response()->json(['error' => 'Error al eliminar el ajuste de inventario'], 500);
         }
     }
