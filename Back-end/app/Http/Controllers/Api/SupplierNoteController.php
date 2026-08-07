@@ -16,8 +16,6 @@ use App\Mail\SupplierNoteConfirmed;
 
 class SupplierNoteController extends Controller
 {
-    //
-
     public function index(Request $request)
     {
         $notes = SupplierNote::with(['supplier', 'details.product', 'createdBy', 'confirmedBy'])
@@ -31,7 +29,6 @@ class SupplierNoteController extends Controller
             'data' => $notes
         ], 200);
     }
-
 
     public function store(Request $request)
     {
@@ -77,9 +74,8 @@ class SupplierNoteController extends Controller
 
             DB::commit();
 
-            // Fuera de la transacción, con su propio try-catch dentro del método:
-            // un fallo de correo nunca debe afectar la respuesta ni revertir
-            // la nota, que ya se guardó correctamente.
+            // Fuera de la transacción, con su propio try/catch: un fallo de
+            // correo nunca debe afectar la respuesta ni revertir la nota.
             $this->notificarAlmacenista($note->fresh(['supplier', 'details.product']), $employee);
 
             return response()->json([
@@ -87,8 +83,11 @@ class SupplierNoteController extends Controller
                 'data' => $note->fresh(['supplier', 'details.product']),
             ], 201);
         } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json(['error' => $e->getMessage()], 500);
+            if (DB::transactionLevel() > 0) {
+                DB::rollBack();
+            }
+            Log::error('Error al crear nota de proveedor', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Error al crear la nota de proveedor'], 500);
         }
     }
 
@@ -99,12 +98,11 @@ class SupplierNoteController extends Controller
             'data' => $note
         ], 200);
     }
+
     public function update(Request $request, $id)
     {
         $note = SupplierNote::findOrFail($id);
 
-        // Solo se puede editar el contenido de una nota mientras sigue pendiente.
-        // Una vez confirmada o pagada, su historial no debe alterarse por aquí.
         if ($note->status !== 'pending') {
             return response()->json([
                 'message' => 'Solo se pueden editar notas en estado pendiente. Usa /confirm o /pay para avanzar el estado.'
@@ -125,9 +123,23 @@ class SupplierNoteController extends Controller
             'data' => $note
         ], 200);
     }
+
+    /**
+     * FIX: antes se podía borrar una nota en cualquier estado, incluyendo
+     * 'confirmed' o 'paid'. Una nota confirmada ya incrementó stock real —
+     * borrarla destruye la evidencia contable sin revertir ese movimiento.
+     * Mismo criterio que ya aplicas en ClientDebtController::destroy().
+     */
     public function destroy($id)
     {
         $note = SupplierNote::findOrFail($id);
+
+        if (in_array($note->status, ['confirmed', 'paid'])) {
+            return response()->json([
+                'message' => 'No se puede eliminar una nota confirmada o pagada: ya afectó el stock y el historial financiero.'
+            ], 409);
+        }
+
         $note->delete();
 
         return response()->json([
@@ -155,8 +167,6 @@ class SupplierNoteController extends Controller
             'observations' => 'nullable|string|max:1000',
         ]);
 
-        // Rechazar product_id repetidos: si vinieran duplicados, el increment
-        // de stock correría dos veces sobre el mismo producto (bug silencioso).
         $ids = array_column($validated['products'], 'product_id');
         if (count($ids) !== count(array_unique($ids))) {
             return response()->json([
@@ -198,7 +208,6 @@ class SupplierNoteController extends Controller
 
             DB::commit();
 
-
             $this->notificarAlDueno($note, $diferencias, $validated['observations'] ?? null, $employee);
 
             return response()->json([
@@ -207,8 +216,11 @@ class SupplierNoteController extends Controller
                 'data' => $note->fresh(['details.product', 'supplier']),
             ], 200);
         } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json(['error' => $e->getMessage()], 500);
+            if (DB::transactionLevel() > 0) {
+                DB::rollBack();
+            }
+            Log::error('Error al confirmar nota de proveedor', ['id' => $id, 'error' => $e->getMessage()]);
+            return response()->json(['message' => 'Error al confirmar la nota'], 500);
         }
     }
 
@@ -225,7 +237,7 @@ class SupplierNoteController extends Controller
                         new \App\Mail\SupplierNoteConfirmed($note, $diferencias, $observaciones, $employee)
                     );
                 } catch (\Throwable $e) {
-                    \Illuminate\Support\Facades\Log::error('Error al notificar a un administrador', [
+                    Log::error('Error al notificar a un administrador', [
                         'note_id' => $note->id,
                         'email' => $admin->email,
                         'error' => $e->getMessage(),
@@ -234,13 +246,22 @@ class SupplierNoteController extends Controller
                 usleep(1500000);
             }
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::error('Error al notificar confirmación de nota', [
+            Log::error('Error al notificar confirmación de nota', [
                 'note_id' => $note->id,
                 'error' => $e->getMessage(),
             ]);
         }
     }
 
+    /**
+     * FIX: antes, si la llamada a Anthropic fallaba (rate limit, key inválida,
+     * timeout, red caída), $response->json('content.0.text') regresaba null,
+     * el código seguía de largo intentando limpiar/parsear ese null, y el
+     * endpoint respondía 200 OK con products = null — el cliente (app Android)
+     * interpretaría eso como "no se encontraron productos" en vez de "el
+     * servicio falló". Ahora se detecta la falla explícitamente y se responde
+     * con un status de error real. También se agregó timeout() explícito.
+     */
     public function scan(Request $request)
     {
         $request->validate([
@@ -253,14 +274,11 @@ class SupplierNoteController extends Controller
             $mimeType = $image->getMimeType();
 
             $apiKey = config('services.anthropic.key');
+
             $response = Http::withHeaders([
                 'x-api-key' => $apiKey,
                 'anthropic-version' => '2023-06-01',
-            ])->post("https://api.anthropic.com/v1/messages", [
-
-
-                // aquí va el body
-
+            ])->timeout(30)->post("https://api.anthropic.com/v1/messages", [
                 'model' => 'claude-sonnet-4-6',
                 'max_tokens' => 1024,
                 'messages' => [
@@ -289,35 +307,53 @@ class SupplierNoteController extends Controller
                 ]
             ]);
 
-            // Texto crudo de Anthropic
+            if ($response->failed()) {
+                Log::error('Fallo llamada a Anthropic en scan()', [
+                    'status' => $response->status(),
+                    'body' => $response->body(),
+                ]);
+                return response()->json([
+                    'message' => 'El servicio de escaneo no respondió correctamente. Intenta de nuevo.'
+                ], 502);
+            }
+
             $text = $response->json('content.0.text');
 
-            // Log completo de la respuesta
             Log::info('Respuesta Anthropic:', [
                 'response' => $response->json(),
                 'text' => $text
             ]);
 
+            if (!$text) {
+                return response()->json([
+                    'message' => 'No se pudo extraer texto de la imagen. Intenta con otra foto.'
+                ], 422);
+            }
+
             $clean = preg_replace('/```json\s*/i', '', $text);
             $clean = preg_replace('/```\s*/i', '', $clean);
             $clean = trim($clean);
 
-            // Intentar decodificar
             $products = json_decode($clean, true);
+
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                Log::error('Respuesta de Anthropic no es JSON válido', ['texto' => $clean]);
+                return response()->json([
+                    'message' => 'No se pudo interpretar la respuesta del escaneo. Intenta con otra foto.'
+                ], 422);
+            }
 
             return response()->json([
                 'message' => 'Productos extraídos del ticket',
                 'products' => $products
             ], 200);
         } catch (\Exception $e) {
+            Log::error('Error al procesar la imagen en scan()', ['error' => $e->getMessage()]);
             return response()->json([
-                'message' => 'Error al procesar la imagen: ' . $e->getMessage()
+                'message' => 'Error al procesar la imagen'
             ], 500);
         }
     }
-
-
-
 
     public function historial()
     {
@@ -328,6 +364,7 @@ class SupplierNoteController extends Controller
 
         return response()->json(['data' => $notes], 200);
     }
+
     public function pay($id)
     {
         $note = SupplierNote::findOrFail($id);
@@ -341,7 +378,6 @@ class SupplierNoteController extends Controller
         return response()->json(['message' => 'Nota marcada como pagada', 'data' => $note], 200);
     }
 
-
     private function notificarAlmacenista($note, $employee): void
     {
         try {
@@ -353,7 +389,7 @@ class SupplierNoteController extends Controller
                 try {
                     Mail::to($u->email)->send(new \App\Mail\SupplierNoteCreated($note, $employee));
                 } catch (\Throwable $e) {
-                    \Illuminate\Support\Facades\Log::error('Error al notificar a un almacenista', [
+                    Log::error('Error al notificar a un almacenista', [
                         'note_id' => $note->id,
                         'email' => $u->email,
                         'error' => $e->getMessage(),
@@ -362,7 +398,7 @@ class SupplierNoteController extends Controller
                 usleep(1500000);
             }
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::error('Error al notificar nota nueva al almacenista', [
+            Log::error('Error al notificar nota nueva al almacenista', [
                 'note_id' => $note->id,
                 'error' => $e->getMessage(),
             ]);

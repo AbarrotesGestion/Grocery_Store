@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class Sale extends Model
 {
     use SoftDeletes;
+
     protected $fillable = [
         'sale_group_id',
         'employee_id',
@@ -55,8 +56,7 @@ class Sale extends Model
         return $this->hasOne(ClientDebt::class);
     }
 
-    // Metodos de  estado  de venta 
-    // Métodos de Estado
+    // Métodos de estado de venta
     public function isCancelled(): bool
     {
         return $this->status === 'cancelled';
@@ -69,8 +69,27 @@ class Sale extends Model
 
     public function canBeCancelled(): bool
     {
-        // Solo se puede cancelar si está completada
         return $this->status === 'completed';
+    }
+
+    /**
+     * Calcula cuántas unidades de stock reales fueron afectadas por esta línea,
+     * considerando si la venta fue por pieza, paquete o peso.
+     *
+     * CENTRALIZA esta fórmula: cualquier método que necesite sumar/restar stock
+     * relacionado con esta venta (cancel, revert, destroy) DEBE usar este método
+     * en vez de leer $this->quantity directamente. $this->quantity es la cantidad
+     * VENDIDA en la unidad que el cliente eligió (ej. 2 paquetes), no la cantidad
+     * real de stock descontada (ej. 24 piezas si package_size = 12).
+     */
+    public function stockUnitsAfectadas(): float
+    {
+        if ($this->sale_unit_type === 'package') {
+            return $this->quantity * ($this->product->package_size ?? 1);
+        }
+
+        // 'unit' y 'weight' descuentan stock 1:1 con la cantidad vendida
+        return $this->quantity;
     }
 
     /**
@@ -82,14 +101,13 @@ class Sale extends Model
             return false;
         }
 
-        // Devolver stock al producto
-        $this->product->increment('stock', $this->quantity);
+        $this->product->increment('stock', $this->stockUnitsAfectadas());
 
-        // Marcar como cancelada
         $this->update(['status' => 'cancelled']);
 
         return true;
     }
+
     /**
      * Revertir cancelación
      */
@@ -99,15 +117,14 @@ class Sale extends Model
             return false;
         }
 
-        // Verificar si hay stock suficiente para revertir
-        if (!$this->product->hasStock($this->quantity)) {
+        $unidades = $this->stockUnitsAfectadas();
+
+        if (!$this->product->hasStock($unidades)) {
             return false;
         }
 
-        // Quitar stock del producto
-        $this->product->decrement('stock', $this->quantity);
+        $this->product->decrement('stock', $unidades);
 
-        // Marcar como completada
         $this->update(['status' => 'completed']);
 
         return true;

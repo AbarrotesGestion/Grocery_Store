@@ -39,10 +39,11 @@ Route::middleware('auth:sanctum')->get('/me', function (Request $request) {
 });
 
 
-// Ventas
+
 // Ventas
 Route::middleware(['auth:sanctum', 'role:Cajero,Administrador'])->group(function () {
     Route::apiResource('sales', SaleController::class);
+    Route::post('sales/group/{saleGroupId}/add-items', [SaleController::class, 'addItemsToGroup']);
     Route::post('sales/{id}/cancel', [SaleController::class, 'cancel']);
     Route::post('sales/group/{saleGroupId}/cancel', [SaleController::class, 'cancelGroup']);
 });
