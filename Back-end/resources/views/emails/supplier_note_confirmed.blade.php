@@ -1,12 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <style>
+        body { font-family: DejaVu Sans, Arial, sans-serif; color: #1F2A22; }
+        table { border-collapse: collapse; width: 100%; margin-top: 12px; }
+        th, td { border: 1px solid #E3DECF; padding: 8px; text-align: left; }
+        th { background: #2E6B4E; color: #fff; }
+        .diferencia-ok { color: #16A34A; font-weight: bold; }
+        .diferencia-mal { color: #DC2626; font-weight: bold; }
+        .observaciones { background: #fef3c7; padding: 10px; border-left: 4px solid #d97706; margin-top: 16px; }
+    </style>
+</head>
+<body>
+
 <h2>Entrada de mercancía confirmada</h2>
 
 <p><strong>Proveedor:</strong> {{ $note->supplier->company_name ?? '—' }}</p>
 <p><strong>Confirmó:</strong> {{ $employee->first_name }} {{ $employee->last_name }}</p>
-<p><strong>Fecha:</strong> {{ now()->format('d/m/Y H:i') }}</p>
+<p><strong>Fecha:</strong> {{ \Carbon\Carbon::now()->format('d/m/Y H:i') }}</p>
 
-<table border="1" cellpadding="6" cellspacing="0" style="border-collapse:collapse;">
-    <tr style="background:#f3f4f6;">
-        <th align="left">Producto</th>
+<table>
+    <tr>
+        <th>Producto</th>
         <th>Pactado</th>
         <th>Recibido</th>
         <th>Diferencia</th>
@@ -14,12 +30,15 @@
     @foreach ($diferencias as $d)
         <tr>
             <td>{{ $d['producto'] }}</td>
-            <td align="center">{{ $d['pactado'] }}</td>
-            <td align="center">{{ $d['recibido'] }}</td>
-            <td align="center" style="color: {{ $d['diferencia'] < 0 ? '#dc2626' : ($d['diferencia'] > 0 ? '#d97706' : '#16a34a') }};">
-                @if ($d['diferencia'] === 0) completo
-                @elseif ($d['diferencia'] < 0) faltaron {{ abs($d['diferencia']) }}
-                @else llegaron {{ $d['diferencia'] }} de más
+            <td>{{ $d['pactado'] }}</td>
+            <td>{{ $d['recibido'] }}</td>
+            <td>
+                @if ($d['diferencia'] == 0)
+                    <span class="diferencia-ok">completo</span>
+                @elseif ($d['diferencia'] < 0)
+                    <span class="diferencia-mal">faltaron {{ abs($d['diferencia']) }}</span>
+                @else
+                    <span class="diferencia-mal">llegaron {{ $d['diferencia'] }} de más</span>
                 @endif
             </td>
         </tr>
@@ -28,5 +47,8 @@
 
 @if ($observaciones)
     <h3>Observaciones del encargado</h3>
-    <p style="background:#fef3c7; padding:10px; border-left:4px solid #d97706;">{{ $observaciones }}</p>
+    <div class="observaciones">{{ $observaciones }}</div>
 @endif
+
+</body>
+</html>

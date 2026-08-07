@@ -18,9 +18,15 @@ class SupplierNoteController extends Controller
 {
     //
 
-    public function index()
+    public function index(Request $request)
     {
-        $notes = SupplierNote::with(['supplier', 'details.product', 'createdBy', 'confirmedBy'])->get();
+        $notes = SupplierNote::with(['supplier', 'details.product', 'createdBy', 'confirmedBy'])
+            ->when($request->status, function ($query, $status) {
+                $query->where('status', $status);
+            })
+            ->orderBy('created_at', 'desc')
+            ->get();
+
         return response()->json([
             'data' => $notes
         ], 200);
@@ -50,7 +56,6 @@ class SupplierNoteController extends Controller
         DB::beginTransaction();
         try {
             $note = SupplierNote::create([
-                // ¿qué campos van aquí?
                 'supplier_id' => $validated['supplier_id'],
                 'total_amount' => $validated['total_amount'],
                 'delivery_date' => $validated['delivery_date'],
@@ -61,7 +66,6 @@ class SupplierNoteController extends Controller
 
             foreach ($validated['products'] as $product) {
                 SupplierNoteDetail::create([
-                    // ¿qué campos van aquí?
                     'supplier_note_id' => $note->id,
                     'product_id' => $product['product_id'],
                     'quantity_agreed' => $product['quantity_agreed'],
@@ -72,7 +76,16 @@ class SupplierNoteController extends Controller
             }
 
             DB::commit();
-            return response()->json(['message' => 'Nota de proveedor creada exitosamente'], 201);
+
+            // Fuera de la transacción, con su propio try-catch dentro del método:
+            // un fallo de correo nunca debe afectar la respuesta ni revertir
+            // la nota, que ya se guardó correctamente.
+            $this->notificarAlmacenista($note->fresh(['supplier', 'details.product']), $employee);
+
+            return response()->json([
+                'message' => 'Nota de proveedor creada exitosamente',
+                'data' => $note->fresh(['supplier', 'details.product']),
+            ], 201);
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json(['error' => $e->getMessage()], 500);
@@ -207,9 +220,18 @@ class SupplierNoteController extends Controller
             })->get();
 
             foreach ($admins as $admin) {
-                \Illuminate\Support\Facades\Mail::to($admin->email)->send(
-                    new \App\Mail\SupplierNoteConfirmed($note, $diferencias, $observaciones, $employee)
-                );
+                try {
+                    Mail::to($admin->email)->send(
+                        new \App\Mail\SupplierNoteConfirmed($note, $diferencias, $observaciones, $employee)
+                    );
+                } catch (\Throwable $e) {
+                    \Illuminate\Support\Facades\Log::error('Error al notificar a un administrador', [
+                        'note_id' => $note->id,
+                        'email' => $admin->email,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+                usleep(1500000);
             }
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::error('Error al notificar confirmación de nota', [
@@ -218,6 +240,7 @@ class SupplierNoteController extends Controller
             ]);
         }
     }
+
     public function scan(Request $request)
     {
         $request->validate([
@@ -254,7 +277,12 @@ class SupplierNoteController extends Controller
                             ],
                             [
                                 'type' => 'text',
-                                'text' => 'Analiza este ticket de proveedor y extrae todos los productos. Devuelve SOLO un array JSON con los campos: nombre, cantidad, precio_unitario. Sin texto adicional, sin markdown, solo el JSON.'
+                                'text' => 'Analiza este ticket de proveedor y extrae todos los productos. '
+                                    . 'Para cada producto busca si tiene un código o clave impresa junto al nombre '
+                                    . '(usualmente un número de varios dígitos que aparece antes o junto a la descripción '
+                                    . 'del producto, distinto del precio). Devuelve SOLO un array JSON con los campos: '
+                                    . 'nombre, codigo (o null si no detectas ninguno), cantidad, precio_unitario. '
+                                    . 'Sin texto adicional, sin markdown, solo el JSON.'
                             ]
                         ]
                     ]
@@ -311,5 +339,33 @@ class SupplierNoteController extends Controller
         $note->update(['status' => 'paid']);
 
         return response()->json(['message' => 'Nota marcada como pagada', 'data' => $note], 200);
+    }
+
+
+    private function notificarAlmacenista($note, $employee): void
+    {
+        try {
+            $almacenistas = \App\Models\User::whereHas('employee.role', function ($q) {
+                $q->where('name', 'Almacenista');
+            })->get();
+
+            foreach ($almacenistas as $u) {
+                try {
+                    Mail::to($u->email)->send(new \App\Mail\SupplierNoteCreated($note, $employee));
+                } catch (\Throwable $e) {
+                    \Illuminate\Support\Facades\Log::error('Error al notificar a un almacenista', [
+                        'note_id' => $note->id,
+                        'email' => $u->email,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+                usleep(1500000);
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Error al notificar nota nueva al almacenista', [
+                'note_id' => $note->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 }
