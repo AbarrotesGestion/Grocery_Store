@@ -36,6 +36,7 @@ class ClientController extends Controller
             'street_1' => 'required|string|max:255',
             'street_2' => 'nullable|string|max:255',
             'neighborhood' => 'required|string|max:255',
+            'credit_limit' => 'nullable|numeric|min:0',
         ]);
 
         $Client = Client::create($validated);
@@ -77,6 +78,7 @@ class ClientController extends Controller
             'street_1' => 'required|string|max:255',
             'street_2' => 'nullable|string|max:255',
             'neighborhood' => 'required|string|max:255',
+            'credit_limit' => 'nullable|numeric|min:0',
         ]);
 
         $client->update($validated);

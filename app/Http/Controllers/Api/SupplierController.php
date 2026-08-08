@@ -6,19 +6,27 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\SupplierDebt;
 use App\Models\Supplier;
+use Exception;
 
 class SupplierController extends Controller
 {
     /**
      * Display a listing of the resource.
      */
-public function index()
+    public function index()
     {
-        $suppliers = Supplier::orderBy('company_name', 'asc')->get();
-        return response()->json([
-            'message' => 'Lista de proveedores',
-            'data' => $suppliers
-        ], 200);
+        try {
+            $suppliers = Supplier::orderBy('company_name', 'asc')->get();
+            return response()->json([
+                'message' => 'Lista de proveedores',
+                'data' => $suppliers
+            ], 200);
+        } catch (Exception $e) {
+            return response()->json([
+                'message' => 'Error al obtener la lista de proveedores',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
@@ -31,18 +39,27 @@ public function index()
      */
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'company_name' => 'required|string|max:255',
-            'contact_name' => 'required|string|max:255',
-            'phone' => 'nullable|string|max:20',
-            'email' => 'nullable|email|max:255|unique:suppliers,email',
-        ]);
+        try {
+            $validated = $request->validate([
+                'company_name' => 'required|string|max:255',
+                'contact_name' => 'required|string|max:255',
+                'phone' => 'nullable|string|max:20',
+                'email' => 'nullable|email|max:255|unique:suppliers,email',
+            ]);
 
-        Supplier::create($validated);
-        return response()->json([
-            'message' => 'Proveedor creado exitosamente',
-            'data' => $validated
-        ], 201);
+            $supplier = Supplier::create($validated);
+
+            // Devolvemos la variable $supplier con el ID y datos completos
+            return response()->json([
+                'message' => 'Proveedor creado exitosamente',
+                'data' => $supplier
+            ], 201);
+        } catch (Exception $e) {
+            return response()->json([
+                'message' => 'Error al crear el proveedor',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
@@ -50,11 +67,18 @@ public function index()
      */
     public function show(string $id)
     {
-        $supplier = Supplier::with('debts')->findOrFail($id);
-        return response()->json([
-            'message' => 'Proveedor encontrado',
-            'data' => $supplier
-        ], 200);
+        try {
+            $supplier = Supplier::with('debts')->findOrFail($id);
+            return response()->json([
+                'message' => 'Proveedor encontrado',
+                'data' => $supplier
+            ], 200);
+        } catch (Exception $e) {
+            return response()->json([
+                'message' => 'Proveedor no encontrado o error en el servidor',
+                'error' => $e->getMessage()
+            ], 404);
+        }
     }
 
     /**
@@ -67,21 +91,28 @@ public function index()
      */
     public function update(Request $request, string $id)
     {
-        $supplier = Supplier::findOrFail($id);
-        
-        $validated = $request->validate([
-            'company_name' => 'required|string|max:255',
-            'contact_name' => 'required|string|max:255',
-            'phone' => 'nullable|string|max:20',
-            'email' => 'nullable|email|max:255|unique:suppliers,email,' . $id,
-        ]);
+        try {
+            $supplier = Supplier::findOrFail($id);
 
-        $supplier->update($validated);
-        
-        return response()->json([
-            'message' => 'Proveedor actualizado exitosamente',
-            'data' => $supplier
-        ], 200);
+            $validated = $request->validate([
+                'company_name' => 'required|string|max:255',
+                'contact_name' => 'required|string|max:255',
+                'phone' => 'nullable|string|max:20',
+                'email' => 'nullable|email|max:255|unique:suppliers,email,' . $id,
+            ]);
+
+            $supplier->update($validated);
+
+            return response()->json([
+                'message' => 'Proveedor actualizado exitosamente',
+                'data' => $supplier
+            ], 200);
+        } catch (Exception $e) {
+            return response()->json([
+                'message' => 'Error al actualizar el proveedor',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
@@ -89,21 +120,26 @@ public function index()
      */
     public function destroy(string $id)
     {
-        $supplier = Supplier::findOrFail($id);
-        
-        
-        // Verificar si el proveedor tiene deudas pendientes
-        if ($supplier->debts()->whereIn('status', ['pending', 'overdue'])->exists()) {
-            return response()->json([
-                'message' => 'No se puede eliminar el proveedor porque tiene deudas pendientes',
-            ], 400);
-        }
-        
-        $supplier->delete();
-        return response()->json([
-            'message' => 'Proveedor eliminado exitosamente',
-            'data' => $supplier
-        ], 200);
+        try {
+            $supplier = Supplier::findOrFail($id);
 
+            // Verificar si el proveedor tiene deudas pendientes
+            if ($supplier->debts()->whereIn('status', ['pending', 'overdue'])->exists()) {
+                return response()->json([
+                    'message' => 'No se puede eliminar el proveedor porque tiene deudas pendientes',
+                ], 400);
+            }
+
+            $supplier->delete();
+            return response()->json([
+                'message' => 'Proveedor eliminado exitosamente',
+                'data' => $supplier
+            ], 200);
+        } catch (Exception $e) {
+            return response()->json([
+                'message' => 'Error al eliminar el proveedor',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 }

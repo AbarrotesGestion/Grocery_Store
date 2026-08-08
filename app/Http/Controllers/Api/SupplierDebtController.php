@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\SupplierDebt;
 use Illuminate\Http\Request;
+use Exception;
 
 class SupplierDebtController extends Controller
 {
@@ -14,12 +15,19 @@ class SupplierDebtController extends Controller
      */
     public function index()
     {
-        // Obtener todas las deudas con su proveedor asociado
-        $debts = SupplierDebt::with('supplier')->get();
-        return response()->json([
-            'message' => 'Lista de deudas de proveedores',
-            'data' => $debts
-        ], 200);
+        try {
+            // Obtener todas las deudas con su proveedor asociado
+            $debts = SupplierDebt::with('supplier')->get();
+            return response()->json([
+                'message' => 'Lista de deudas de proveedores',
+                'data' => $debts
+            ], 200);
+        } catch (Exception $e) {
+            return response()->json([
+                'message' => 'Error al obtener la lista de deudas',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
@@ -32,21 +40,28 @@ class SupplierDebtController extends Controller
      */
     public function store(Request $request)
     {
-        // Validar los datos del formulario
-        $validated = $request->validate([
-            'supplier_id' => 'required|exists:suppliers,id',
-            'start_date' => 'required|date',
-            'due_date' => 'required|date|after:start_date',
-            'amount' => 'required|numeric|min:0.01',
-            'status' => 'required|in:pending,paid,overdue',
-        ]);
+        try {
+            // Validar los datos del formulario
+            $validated = $request->validate([
+                'supplier_id' => 'required|exists:suppliers,id',
+                'start_date' => 'required|date',
+                'due_date' => 'required|date|after:start_date',
+                'amount' => 'required|numeric|min:0.01',
+                'status' => 'required|in:pending,paid,overdue',
+            ]);
 
-        // Crear la deuda con los datos validados
-        $debt = SupplierDebt::create($validated);
-        return response()->json([
-            'message' => 'Deuda del proveedor creada exitosamente',
-            'data' => $debt
-        ], 201);
+            // Crear la deuda con los datos validados
+            $debt = SupplierDebt::create($validated);
+            return response()->json([
+                'message' => 'Deuda del proveedor creada exitosamente',
+                'data' => $debt
+            ], 201);
+        } catch (Exception $e) {
+            return response()->json([
+                'message' => 'Error al crear la deuda del proveedor',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
@@ -54,11 +69,18 @@ class SupplierDebtController extends Controller
      */
     public function show(string $id)
     {
-        $debt = SupplierDebt::with('supplier')->findOrFail($id);
-        return response()->json([
-            'message' => 'Deuda encontrada',
-            'data' => $debt
-        ], 200);
+        try {
+            $debt = SupplierDebt::with('supplier')->findOrFail($id);
+            return response()->json([
+                'message' => 'Deuda encontrada',
+                'data' => $debt
+            ], 200);
+        } catch (Exception $e) {
+            return response()->json([
+                'message' => 'Deuda no encontrada o error en el servidor',
+                'error' => $e->getMessage()
+            ], 404);
+        }
     }
 
     /**
@@ -70,23 +92,30 @@ class SupplierDebtController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        $debt = SupplierDebt::findOrFail($id);
+        try {
+            $debt = SupplierDebt::findOrFail($id);
 
-        // Validar los datos del formulario
-        $validated = $request->validate([
-            'supplier_id' => 'required|exists:suppliers,id',
-            'start_date' => 'required|date',
-            'due_date' => 'required|date|after:start_date',
-            'amount' => 'required|numeric|min:0.01',
-            'status' => 'required|in:pending,paid,overdue',
-        ]);
+            // Validar los datos del formulario
+            $validated = $request->validate([
+                'supplier_id' => 'required|exists:suppliers,id',
+                'start_date' => 'required|date',
+                'due_date' => 'required|date|after:start_date',
+                'amount' => 'required|numeric|min:0.01',
+                'status' => 'required|in:pending,paid,overdue',
+            ]);
 
-        // Actualizar con datos validados
-        $debt->update($validated);
-        return response()->json([
-            'message' => 'Deuda del proveedor actualizada exitosamente',
-            'data' => $debt
-        ], 200);
+            // Actualizar con datos validados
+            $debt->update($validated);
+            return response()->json([
+                'message' => 'Deuda del proveedor actualizada exitosamente',
+                'data' => $debt
+            ], 200);
+        } catch (Exception $e) {
+            return response()->json([
+                'message' => 'Error al actualizar la deuda del proveedor',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
@@ -94,18 +123,25 @@ class SupplierDebtController extends Controller
      */
     public function destroy(string $id)
     {
-        $debt = SupplierDebt::findOrFail($id);
+        try {
+            $debt = SupplierDebt::findOrFail($id);
 
-        // No permitir eliminar deudas pendientes o vencidas
-        if (in_array($debt->status, ['pending', 'overdue'])) {
+            // No permitir eliminar deudas pendientes o vencidas
+            if (in_array($debt->status, ['pending', 'overdue'])) {
+                return response()->json([
+                    'message' => 'No se puede eliminar una deuda pendiente o vencida.'
+                ], 409);
+            }
+
+            $debt->delete();
             return response()->json([
-                'message' => 'No se puede eliminar una deuda pendiente o vencida.'
-            ], 409);
+                'message' => 'Deuda del proveedor eliminada exitosamente'
+            ], 200);
+        } catch (Exception $e) {
+            return response()->json([
+                'message' => 'Error al eliminar la deuda del proveedor',
+                'error' => $e->getMessage()
+            ], 500);
         }
-
-        $debt->delete();
-        return response()->json([
-            'message' => 'Deuda del proveedor eliminada exitosamente'
-        ], 200);
     }
 }
