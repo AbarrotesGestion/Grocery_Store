@@ -1,2 +1,0 @@
-
-<?php echo $__env->make('adminlte::auth.login', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?><?php /**PATH /home/yahir/grocery_store/Back-end/resources/views/auth/login.blade.php ENDPATH**/ ?>
