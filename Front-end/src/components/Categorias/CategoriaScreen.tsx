@@ -20,7 +20,6 @@ interface Categoria {
 export default function Categorias() {
   const navigate = useNavigate();
 
-  // Información dummy, proximo a cambiar por datos desde la API
   const [categorias, setCategorias] = useState<Categoria[]>([
     { id: 1, nombre: 'Abarrotes', descripcion: 'Productos básicos de despensa', totalProductos: 2 },
     { id: 2, nombre: 'Bebidas', descripcion: 'Bebidas frías y calientes', totalProductos: 2 },
@@ -36,7 +35,6 @@ export default function Categorias() {
 
   const [search, setSearch] = useState('');
 
-  // Para apertura de modal
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<Categoria | null>(null);
 

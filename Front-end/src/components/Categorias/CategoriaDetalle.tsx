@@ -11,7 +11,6 @@ import CategoriaModal from './CategoriaModal';
 export default function CategoriaDetalle() {
   const { id } = useParams();
 
-  // Información Dummy proximo a cambiar
   const [categoria, setCategoria] = useState({
     id: Number(id) || 1,
     nombre: 'Abarrotes',

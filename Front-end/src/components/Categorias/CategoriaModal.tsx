@@ -96,7 +96,6 @@ export default function CategoriaModal({ isOpen, onClose, onSave, initialData }:
             </button>
           </div>
         </form>
-
       </div>
     </div>
   );
