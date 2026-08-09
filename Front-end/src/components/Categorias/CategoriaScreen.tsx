@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import { useState, useEffect } from 'react'; // Quitamos 'React' para limpiar el primer warning
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 import { 
   HiPlus, 
   HiOutlineFolder, 
@@ -10,33 +11,56 @@ import {
 } from 'react-icons/hi2';
 import CategoriaModal from './CategoriaModal';
 
+// 1. Creamos una interfaz básica para callar el error de "Unexpected any"
+interface Producto {
+  id: number;
+}
+
 interface Categoria {
   id: number;
-  nombre: string;
-  descripcion: string;
-  totalProductos: number;
+  name: string;
+  description: string;
+  products?: Producto[]; // Ya usamos un tipo definido en lugar de 'any'
 }
 
 export default function Categorias() {
   const navigate = useNavigate();
 
-  const [categorias, setCategorias] = useState<Categoria[]>([
-    { id: 1, nombre: 'Abarrotes', descripcion: 'Productos básicos de despensa', totalProductos: 2 },
-    { id: 2, nombre: 'Bebidas', descripcion: 'Bebidas frías y calientes', totalProductos: 2 },
-    { id: 3, nombre: 'Botanas', descripcion: 'Snacks y frituras', totalProductos: 1 },
-    { id: 4, nombre: 'Carnes y Embutidos', descripcion: 'Cortes de carne y salchichonería', totalProductos: 1 },
-    { id: 5, nombre: 'Farmacia', descripcion: 'Medicamentos básicos y aseo personal', totalProductos: 0 },
-    { id: 6, nombre: 'Frutas y Verduras', descripcion: 'Productos del campo frescos', totalProductos: 0 },
-    { id: 7, nombre: 'Lácteos', descripcion: 'Productos derivados de la leche', totalProductos: 2 },
-    { id: 8, nombre: 'Limpieza', descripcion: 'Artículos de limpieza del hogar', totalProductos: 1 },
-    { id: 9, nombre: 'Mascotas', descripcion: 'Alimento y accesorios para animales', totalProductos: 0 },
-    { id: 10, nombre: 'Panadería', descripcion: 'Pan fresco y repostería', totalProductos: 1 },
-  ]);
-
+  const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [search, setSearch] = useState('');
-
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<Categoria | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // 2. Creamos un disparador para recargar la lista
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  // 3. Metemos la función DENTRO del useEffect para cumplir la regla del linter
+useEffect(() => {
+    const fetchCategorias = async () => {
+      setIsLoading(true);
+      try {
+        const token = localStorage.getItem('token');
+        const response = await axios.get('https://api.yahirdev.dev/api/categories', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        
+        // LA CORRECCIÓN: Revisamos si Laravel envolvió los datos en la propiedad 'data'
+        const dataRevisada = response.data.data || response.data;
+        
+        // Nos aseguramos al 100% de que sea un arreglo antes de guardarlo en el estado
+        setCategorias(Array.isArray(dataRevisada) ? dataRevisada : []);
+        
+      } catch (error) {
+        console.error('Error al cargar las categorías:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    // ¡Aquí es donde le decimos a React que ejecute la función!
+    fetchCategorias(); 
+  }, [refreshTrigger]); // Se vuelve a ejecutar mágicamente cada vez que refreshTrigger cambia
 
   const handleOpenNewModal = () => {
     setSelectedCategory(null);
@@ -48,37 +72,49 @@ export default function Categorias() {
     setIsModalOpen(true);
   };
 
-  const handleSaveCategory = (data: { id?: number; nombre: string; descripcion: string }) => {
-    if (data.id) {
-      setCategorias(prev =>
-        prev.map(item =>
-          item.id === data.id
-            ? { ...item, nombre: data.nombre, descripcion: data.descripcion }
-            : item
-        )
-      );
-    } else {
-      const newCategory: Categoria = {
-        id: Date.now(),
-        nombre: data.nombre,
-        descripcion: data.descripcion,
-        totalProductos: 0,
-      };
-      setCategorias(prev => [newCategory, ...prev]);
+  const handleSaveCategory = async (data: { id?: number; name: string; description: string }) => {
+    try {
+      const token = localStorage.getItem('token');
+      
+      if (data.id) {
+        await axios.put(`https://api.yahirdev.dev/api/categories/${data.id}`, data, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+      } else {
+        await axios.post('https://api.yahirdev.dev/api/categories', data, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+      }
+      
+      // 4. Movemos el disparador para que el useEffect re-consulte la base de datos
+      setRefreshTrigger(prev => prev + 1);
+      setIsModalOpen(false);
+    } catch (error) {
+      console.error('Error al guardar la categoría:', error);
+      alert('Hubo un error al guardar la categoría.');
     }
   };
 
-  const handleDeleteCategory = (id: number) => {
-    if (confirm('¿Estás seguro de que deseas eliminar esta categoría?')) {
-      setCategorias(prev => prev.filter(item => item.id !== id));
+  const handleDeleteCategory = async (id: number) => {
+    if (window.confirm('¿Estás seguro de que deseas eliminar esta categoría?')) {
+      try {
+        const token = localStorage.getItem('token');
+        await axios.delete(`https://api.yahirdev.dev/api/categories/${id}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        
+        setCategorias(prev => prev.filter(item => item.id !== id));
+      } catch (error) {
+        console.error('Error al eliminar la categoría:', error);
+        alert('Hubo un error al intentar eliminar la categoría.');
+      }
     }
   };
 
-  const categoriasFiltradas = categorias.filter(cat =>
-    cat.nombre.toLowerCase().includes(search.toLowerCase()) ||
-    cat.descripcion.toLowerCase().includes(search.toLowerCase())
+ const categoriasFiltradas = (Array.isArray(categorias) ? categorias : []).filter(cat =>
+    cat.name?.toLowerCase().includes(search.toLowerCase()) ||
+    cat.description?.toLowerCase().includes(search.toLowerCase())
   );
-
   return (
     <div className="p-6 bg-dark-bg text-gris-calido min-h-screen space-y-6">
       
@@ -119,7 +155,13 @@ export default function Categorias() {
               </tr>
             </thead>
             <tbody className="divide-y divide-dark-border">
-              {categoriasFiltradas.length > 0 ? (
+              {isLoading ? (
+                <tr>
+                  <td colSpan={4} className="py-8 text-center text-neo-mint">
+                    Cargando categorías...
+                  </td>
+                </tr>
+              ) : categoriasFiltradas.length > 0 ? (
                 categoriasFiltradas.map((cat) => (
                   <tr key={cat.id} className="hover:bg-dark-bg/40 transition-colors">
                     
@@ -127,16 +169,16 @@ export default function Categorias() {
                       <div className="p-2 bg-neo-mint/10 rounded-lg text-neo-mint">
                         <HiOutlineFolder className="text-lg" />
                       </div>
-                      <span>{cat.nombre}</span>
+                      <span>{cat.name}</span>
                     </td>
 
                     <td className="py-4 px-6 text-gris-calido/80">
-                      {cat.descripcion || 'Sin descripción'}
+                      {cat.description || 'Sin descripción'}
                     </td>
 
                     <td className="py-4 px-6 text-center">
                       <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-ghost-blue/10 text-ghost-blue border border-ghost-blue/20">
-                        {cat.totalProductos} {cat.totalProductos === 1 ? 'artículo' : 'artículos'}
+                        {cat.products?.length || 0} {(cat.products?.length || 0) === 1 ? 'artículo' : 'artículos'}
                       </span>
                     </td>
 

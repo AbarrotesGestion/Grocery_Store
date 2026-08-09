@@ -1,22 +1,29 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { HiXMark, HiOutlineBanknotes } from 'react-icons/hi2';
 
-export interface DeudaClienteData {
+export interface Deuda {
   id?: number;
-  clienteId: number | string;
-  clienteNombre?: string;
-  fechaInicio: string;
-  fechaVencimiento: string;
-  monto: number;
-  estado: 'Pending' | 'Overdue' | 'Paid';
+  client_id: number | string;
+  client?: {
+    id: number;
+    first_name: string;
+    last_name: string;
+    phone?: string;
+  };
+  start_date: string;
+  due_date: string;
+  // Actualizado a como lo pide el controlador de Laravel
+  balance_due: number;
+  // Actualizado a minúsculas exactas del controlador
+  status: 'pending' | 'overdue' | 'paid';
 }
 
 interface DeudaClienteModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (data: DeudaClienteData) => void;
-  initialData?: DeudaClienteData | null;
-  clientesList: { id: number; nombre: string }[];
+  onSave: (data: Deuda) => void;
+  initialData?: Deuda | null;
+  clientesList: { id: number; first_name: string; last_name: string }[]; 
 }
 
 export default function DeudaClienteModal({
@@ -26,37 +33,40 @@ export default function DeudaClienteModal({
   initialData,
   clientesList,
 }: DeudaClienteModalProps) {
-  const [formData, setFormData] = useState<DeudaClienteData>({
-    clienteId: clientesList[0]?.id || '',
-    fechaInicio: new Date().toISOString().split('T')[0],
-    fechaVencimiento: '',
-    monto: 0,
-    estado: 'Pending',
+  
+  const [formData, setFormData] = useState<Deuda>({
+    client_id: clientesList[0]?.id || '',
+    start_date: new Date().toISOString().split('T')[0],
+    due_date: '',
+    balance_due: 0,
+    status: 'pending',
   });
 
-  useEffect(() => {
-    if (initialData) {
-      setFormData(initialData);
-    } else {
-      setFormData({
-        clienteId: clientesList[0]?.id || '',
-        fechaInicio: new Date().toISOString().split('T')[0],
-        fechaVencimiento: '',
-        monto: 0,
-        estado: 'Pending',
-      });
+useEffect(() => {
+    if (isOpen) {
+      if (initialData) {
+        setFormData({
+          ...initialData,
+          // Limpiamos las fechas para que los inputs tipo 'date' las reconozcan sin error
+          start_date: initialData.start_date ? initialData.start_date.split('T')[0] : '',
+          due_date: initialData.due_date ? initialData.due_date.split('T')[0] : '',
+        });
+      } else {
+        setFormData({
+          client_id: clientesList[0]?.id || '',
+          start_date: new Date().toISOString().split('T')[0],
+          due_date: '',
+          balance_due: 0,
+          status: 'pending',
+        });
+      }
     }
   }, [initialData, isOpen, clientesList]);
-
   if (!isOpen) return null;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const clienteObj = clientesList.find(c => Number(c.id) === Number(formData.clienteId));
-    onSave({
-      ...formData,
-      clienteNombre: clienteObj ? clienteObj.nombre : `ID: #${formData.clienteId}`,
-    });
+    onSave(formData);
     onClose();
   };
 
@@ -84,13 +94,13 @@ export default function DeudaClienteModal({
               Cliente *
             </label>
             <select
-              value={formData.clienteId}
-              onChange={(e) => setFormData({ ...formData, clienteId: e.target.value })}
+              value={formData.client_id}
+              onChange={(e) => setFormData({ ...formData, client_id: e.target.value })}
               className="w-full bg-dark-bg border border-dark-border rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-neo-mint transition-colors"
             >
               {clientesList.map((cli) => (
                 <option key={cli.id} value={cli.id} className="bg-dark-card text-white">
-                  {cli.nombre} (ID: #{cli.id})
+                  {cli.first_name} {cli.last_name} (ID: #{cli.id})
                 </option>
               ))}
             </select>
@@ -104,8 +114,8 @@ export default function DeudaClienteModal({
               <input
                 type="date"
                 required
-                value={formData.fechaInicio}
-                onChange={(e) => setFormData({ ...formData, fechaInicio: e.target.value })}
+                value={formData.start_date}
+                onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
                 className="w-full bg-dark-bg border border-dark-border rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:border-neo-mint"
               />
             </div>
@@ -117,8 +127,8 @@ export default function DeudaClienteModal({
               <input
                 type="date"
                 required
-                value={formData.fechaVencimiento}
-                onChange={(e) => setFormData({ ...formData, fechaVencimiento: e.target.value })}
+                value={formData.due_date}
+                onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
                 className="w-full bg-dark-bg border border-dark-border rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:border-neo-mint"
               />
             </div>
@@ -132,10 +142,10 @@ export default function DeudaClienteModal({
               <input
                 type="number"
                 step="0.01"
-                min="0"
+                min="0.01"
                 required
-                value={formData.monto}
-                onChange={(e) => setFormData({ ...formData, monto: Number(e.target.value) })}
+                value={formData.balance_due}
+                onChange={(e) => setFormData({ ...formData, balance_due: Number(e.target.value) })}
                 className="w-full bg-dark-bg border border-dark-border rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-neo-mint"
               />
             </div>
@@ -145,13 +155,13 @@ export default function DeudaClienteModal({
                 Actualizar Estado
               </label>
               <select
-                value={formData.estado}
-                onChange={(e) => setFormData({ ...formData, estado: e.target.value as 'Pending' | 'Overdue' | 'Paid' })}
+                value={formData.status}
+                onChange={(e) => setFormData({ ...formData, status: e.target.value as 'pending' | 'overdue' | 'paid' })}
                 className="w-full bg-dark-bg border border-dark-border rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-neo-mint transition-colors"
               >
-                <option value="Pending" className="bg-dark-card text-amber-400">Pendiente (Pending)</option>
-                <option value="Overdue" className="bg-dark-card text-rose-400">Vendido / Vencido (Overdue)</option>
-                <option value="Paid" className="bg-dark-card text-emerald-400">Pagado (Paid)</option>
+                <option value="pending" className="bg-dark-card text-amber-400">Pendiente (pending)</option>
+                <option value="overdue" className="bg-dark-card text-rose-400">Vencido (overdue)</option>
+                <option value="paid" className="bg-dark-card text-emerald-400">Pagado (paid)</option>
               </select>
             </div>
           </div>

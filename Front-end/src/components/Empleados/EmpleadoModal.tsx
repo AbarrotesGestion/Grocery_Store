@@ -1,26 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { HiXMark, HiOutlineUserGroup, HiOutlineIdentification, HiOutlineCreditCard } from 'react-icons/hi2';
-
-export interface EmpleadoData {
-  id?: number;
-  idNomina: string;
-  nombre: string;
-  apellido: string;
-  rol: 'Cajero' | 'Almacenista' | 'Administrador';
-  tarifaHora: number;
-  email: string;
-  telefono: string;
-  domicilio: string;
-  cuentaDeposito: string;
-  fechaRegistro?: string;
-  estado?: 'Activo' | 'Inactivo';
-}
+import { HiXMark, HiOutlineUserGroup } from 'react-icons/hi2';
+import { type Empleado } from './EmpleadoDetalle';
 
 interface EmpleadoModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (data: EmpleadoData) => void;
-  initialData?: EmpleadoData | null;
+  onSave: (data: Empleado) => void;
+  initialData?: Empleado | null;
 }
 
 export default function EmpleadoModal({
@@ -31,37 +17,38 @@ export default function EmpleadoModal({
 }: EmpleadoModalProps) {
   const [tab, setTab] = useState<'personales' | 'laborales'>('personales');
 
-  const [formData, setFormData] = useState<EmpleadoData>({
-    idNomina: '',
-    nombre: '',
-    apellido: '',
-    rol: 'Cajero',
-    tarifaHora: 0,
+  // Estado sincronizado con las variables exactas que espera tu EmployeeController
+  const [formData, setFormData] = useState<Empleado>({
+    payroll_id: '',
+    first_name: '',
+    last_name: '',
     email: '',
-    telefono: '',
-    domicilio: '',
-    cuentaDeposito: '',
-    estado: 'Activo',
+    phone: '',
+    full_address: '',
+    hourly_rate: 80,
+    card_number: '',
+    role_id: 1, // Por defecto asignamos un ID de rol válido (ej. Cajero)
   });
 
   useEffect(() => {
-    if (initialData) {
-      setFormData(initialData);
-    } else {
-      setFormData({
-        idNomina: `EMP-${Math.floor(100 + Math.random() * 900)}`,
-        nombre: '',
-        apellido: '',
-        rol: 'Cajero',
-        tarifaHora: 80,
-        email: '',
-        telefono: '',
-        domicilio: '',
-        cuentaDeposito: '',
-        estado: 'Activo',
-      });
+    if (isOpen) {
+      if (initialData) {
+        setFormData(initialData);
+      } else {
+        setFormData({
+          payroll_id: `EMP-${Math.floor(100 + Math.random() * 900)}`,
+          first_name: '',
+          last_name: '',
+          email: '',
+          phone: '',
+          full_address: '',
+          hourly_rate: 80,
+          card_number: '',
+          role_id: 1,
+        });
+      }
+      setTab('personales');
     }
-    setTab('personales');
   }, [initialData, isOpen]);
 
   if (!isOpen) return null;
@@ -79,7 +66,7 @@ export default function EmpleadoModal({
         <div className="flex items-center justify-between px-6 py-4 border-b border-dark-border">
           <h3 className="text-lg font-bold text-white flex items-center gap-2">
             <HiOutlineUserGroup className="text-neo-mint text-xl" />
-            {initialData ? `Editar Empleado: ${initialData.nombre}` : 'Registrar Nuevo Empleado'}
+            {initialData ? `Editar Empleado: ${initialData.first_name}` : 'Registrar Nuevo Empleado'}
           </h3>
           <button
             onClick={onClose}
@@ -126,8 +113,8 @@ export default function EmpleadoModal({
                   <input
                     type="text"
                     required
-                    value={formData.nombre}
-                    onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
+                    value={formData.first_name}
+                    onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
                     placeholder="Ej. Rosa"
                     className="w-full bg-dark-bg border border-dark-border rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-neo-mint"
                   />
@@ -140,8 +127,8 @@ export default function EmpleadoModal({
                   <input
                     type="text"
                     required
-                    value={formData.apellido}
-                    onChange={(e) => setFormData({ ...formData, apellido: e.target.value })}
+                    value={formData.last_name}
+                    onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
                     placeholder="Ej. Melano"
                     className="w-full bg-dark-bg border border-dark-border rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-neo-mint"
                   />
@@ -165,12 +152,13 @@ export default function EmpleadoModal({
 
                 <div>
                   <label className="block text-xs font-semibold text-gris-calido uppercase tracking-wider mb-2">
-                    Teléfono Móvil
+                    Teléfono Móvil *
                   </label>
                   <input
                     type="text"
-                    value={formData.telefono}
-                    onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
+                    required
+                    value={formData.phone}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                     placeholder="3300002222"
                     className="w-full bg-dark-bg border border-dark-border rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-neo-mint"
                   />
@@ -179,12 +167,13 @@ export default function EmpleadoModal({
 
               <div>
                 <label className="block text-xs font-semibold text-gris-calido uppercase tracking-wider mb-2">
-                  Domicilio Completo
+                  Domicilio Completo *
                 </label>
                 <textarea
                   rows={2}
-                  value={formData.domicilio}
-                  onChange={(e) => setFormData({ ...formData, domicilio: e.target.value })}
+                  required
+                  value={formData.full_address}
+                  onChange={(e) => setFormData({ ...formData, full_address: e.target.value })}
                   placeholder="Calle, Número, Colonia, Municipio"
                   className="w-full bg-dark-bg border border-dark-border rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-neo-mint resize-none"
                 />
@@ -197,42 +186,44 @@ export default function EmpleadoModal({
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-gris-calido uppercase tracking-wider mb-2">
-                    ID Nómina
+                    ID Nómina *
                   </label>
                   <input
                     type="text"
                     required
-                    value={formData.idNomina}
-                    onChange={(e) => setFormData({ ...formData, idNomina: e.target.value })}
+                    value={formData.payroll_id}
+                    onChange={(e) => setFormData({ ...formData, payroll_id: e.target.value })}
                     className="w-full bg-dark-bg border border-dark-border rounded-lg px-4 py-2.5 text-sm text-ghost-blue font-semibold focus:outline-none focus:border-neo-mint"
                   />
                 </div>
 
                 <div>
                   <label className="block text-xs font-semibold text-gris-calido uppercase tracking-wider mb-2">
-                    Rol / Puesto *
+                    Rol / Puesto (ID) *
                   </label>
                   <select
-                    value={formData.rol}
-                    onChange={(e) => setFormData({ ...formData, rol: e.target.value as EmpleadoData['rol'] })}
+                    value={formData.role_id}
+                    onChange={(e) => setFormData({ ...formData, role_id: Number(e.target.value) })}
                     className="w-full bg-dark-bg border border-dark-border rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-neo-mint"
                   >
-                    <option value="Cajero" className="bg-dark-card text-white">Cajero</option>
-                    <option value="Almacenista" className="bg-dark-card text-white">Almacenista</option>
-                    <option value="Administrador" className="bg-dark-card text-white">Administrador</option>
+                    {/* Ajusta estos IDs según los registros de tu tabla 'roles' en la base de datos */}
+                    <option value={1} className="bg-dark-card text-white">Administrador (ID: 1)</option>
+                    <option value={2} className="bg-dark-card text-white">Cajero (ID: 2)</option>
+                    <option value={3} className="bg-dark-card text-white">Almacenista (ID: 3)</option>
                   </select>
                 </div>
 
                 <div>
                   <label className="block text-xs font-semibold text-gris-calido uppercase tracking-wider mb-2">
-                    Pago por Hora ($)
+                    Pago por Hora ($) *
                   </label>
                   <input
                     type="number"
                     step="0.01"
-                    min="0"
-                    value={formData.tarifaHora}
-                    onChange={(e) => setFormData({ ...formData, tarifaHora: Number(e.target.value) })}
+                    min="0.01"
+                    required
+                    value={formData.hourly_rate}
+                    onChange={(e) => setFormData({ ...formData, hourly_rate: Number(e.target.value) })}
                     className="w-full bg-dark-bg border border-dark-border rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-neo-mint"
                   />
                 </div>
@@ -240,14 +231,15 @@ export default function EmpleadoModal({
 
               <div>
                 <label className="block text-xs font-semibold text-gris-calido uppercase tracking-wider mb-2">
-                  Número de Tarjeta / Cuenta Depósito
+                  Número de Tarjeta / Cuenta Depósito *
                 </label>
                 <input
                   type="text"
-                  maxLength={16}
-                  value={formData.cuentaDeposito}
-                  onChange={(e) => setFormData({ ...formData, cuentaDeposito: e.target.value })}
-                  placeholder="Número de 16 dígitos"
+                  required
+                  maxLength={255}
+                  value={formData.card_number}
+                  onChange={(e) => setFormData({ ...formData, card_number: e.target.value })}
+                  placeholder="Número de cuenta o tarjeta"
                   className="w-full bg-dark-bg border border-dark-border rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-neo-mint"
                 />
               </div>
@@ -255,7 +247,7 @@ export default function EmpleadoModal({
               {!initialData && (
                 <div className="p-3.5 bg-neo-mint/10 border border-neo-mint/20 rounded-lg text-xs text-neo-mint">
                   <p className="font-semibold">Nota de Acceso:</p>
-                  <p className="opacity-80">Se creará un acceso para el empleado usando su correo electrónico y la clave por defecto <code className="bg-black/30 px-1 rounded">password</code>.</p>
+                  <p className="opacity-85">Se creará un acceso automático en el sistema para este empleado utilizando su correo electrónico.</p>
                 </div>
               )}
             </div>

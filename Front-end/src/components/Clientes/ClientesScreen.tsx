@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 import { 
   HiPlus, 
   HiOutlineUser, 
@@ -12,25 +13,60 @@ import {
 } from 'react-icons/hi2';
 import ClienteModal, { type ClienteData } from './ClienteModal';
 
+// Creamos esta interfaz para que TypeScript sepa qué datos llegan del backend y no marque error de "any"
+interface ApiCliente {
+  id: number;
+  first_name?: string;
+  last_name?: string;
+  email?: string;
+  phone?: string;
+  street_1?: string;
+  neighborhood?: string;
+  credit_limit?: string | number;
+}
+
 export default function ClientesScreen() {
   const navigate = useNavigate();
 
-  const [clientes, setClientes] = useState<ClienteData[]>([
-    { id: 1, nombre: 'Ana', apellido: 'García', email: 'ana.g@email.com', telefono: '3310002201', calleNumero: 'Av. Juárez 500', colonia: 'Centro' },
-    { id: 2, nombre: 'Carlos', apellido: 'López', email: 'c.lopez@email.com', telefono: '3310002202', calleNumero: 'Calle Hidalgo 12', colonia: 'Zapopan' },
-    { id: 3, nombre: 'Elena', apellido: 'Torres', email: 'elena.t@email.com', telefono: '3310002205', calleNumero: 'Av. México 1500', colonia: 'Ladrón de Guevara' },
-    { id: 4, nombre: 'Fernando', apellido: 'Castro', email: 'fer.c@email.com', telefono: '3310002208', calleNumero: 'López Mateos Sur', colonia: 'Santa Ana' },
-    { id: 5, nombre: 'Jorge', apellido: 'Martínez', email: 'jorge.m@email.com', telefono: '3310002204', calleNumero: 'Calzada Independencia', colonia: 'San Juan' },
-    { id: 6, nombre: 'Laura', apellido: 'Vázquez', email: 'laura.v@email.com', telefono: '3310002209', calleNumero: 'Niños Héroes', colonia: 'Moderna' },
-    { id: 7, nombre: 'Luis Yahir', apellido: 'Hernández González', email: 'luis_@gmail.com', telefono: '3319800229', calleNumero: 'Colorado 163', colonia: 'Hacienda Santa Fe' },
-    { id: 8, nombre: 'María', apellido: 'Rodríguez', email: 'maria.r@email.com', telefono: '3310002203', calleNumero: 'Paseo de las Aves', colonia: 'Bugambilias' },
-    { id: 9, nombre: 'Ricardo', apellido: 'Sánchez', email: 'ric.s@email.com', telefono: '3310002206', calleNumero: 'Sierra de Tapalpa', colonia: 'Las Águilas' },
-    { id: 10, nombre: 'Sofía', apellido: 'Ramírez', email: 'sofia.ram@email.com', telefono: '3310002207', calleNumero: 'Avenida Vallarta', colonia: 'Americana' },
-  ]);
-
+  const [clientes, setClientes] = useState<ClienteData[]>([]);
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedCliente, setSelectedCliente] = useState<ClienteData | null>(null);
+
+  const token = localStorage.getItem('token'); 
+
+  // --- TRAER CLIENTES DE LA API ---
+  const fetchClientes = useCallback(async () => {
+    try {
+      const response = await axios.get('https://api.yahirdev.dev/api/clients', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      const apiData = response.data.data || response.data;
+      
+      // Usamos la interfaz ApiCliente en lugar de (c: any)
+      const clientesFormateados: ClienteData[] = apiData.map((c: ApiCliente) => ({
+        id: c.id,
+        nombre: c.first_name || '',
+        apellido: c.last_name || '',
+        email: c.email || '',
+        telefono: c.phone || '',
+        calleNumero: c.street_1 || '',
+        colonia: c.neighborhood || '',
+        credit_limit: c.credit_limit || ''
+      }));
+
+      setClientes(clientesFormateados); 
+    } catch (error) {
+      console.error("Error al cargar clientes", error);
+    }
+  }, [token]); 
+
+  useEffect(() => {
+    // biome-ignore all: Ignora reglas estrictas del linter para el fetch inicial
+    // eslint-disable-next-line
+    fetchClientes();
+  }, [fetchClientes]);
 
   const handleOpenNewModal = () => {
     setSelectedCliente(null);
@@ -42,18 +78,60 @@ export default function ClientesScreen() {
     setIsModalOpen(true);
   };
 
-  const handleSaveCliente = (data: ClienteData) => {
-    if (data.id) {
-      setClientes(prev => prev.map(c => c.id === data.id ? data : c));
-    } else {
-      const newCli = { ...data, id: Date.now() };
-      setClientes(prev => [newCli, ...prev]);
+  // --- CREAR O EDITAR CLIENTE EN LA API ---
+  const handleSaveCliente = async (data: ClienteData) => {
+    try {
+      const payload = {
+        first_name: data.nombre,
+        last_name: data.apellido,
+        email: data.email,
+        phone: data.telefono,
+        street_1: data.calleNumero,
+        neighborhood: data.colonia,
+        credit_limit: data.credit_limit || 0
+      };
+      
+
+      if (data.id) {
+        await axios.put(`https://api.yahirdev.dev/api/clients/${data.id}`, payload, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+      } else {
+        await axios.post('https://api.yahirdev.dev/api/clients', payload, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+      }
+      
+      setIsModalOpen(false);
+      fetchClientes();
+} catch (error) {
+      console.error("Error completo:", error);
+      
+      // Comprobamos si el error viene de Axios de forma segura para TypeScript
+      if (axios.isAxiosError(error)) {
+        if (error.response && error.response.data) {
+          alert("Error del servidor: " + JSON.stringify(error.response.data));
+        } else {
+          alert("Hubo un error de conexión con el servidor.");
+        }
+      } else {
+        alert("Ocurrió un error inesperado.");
+      }
     }
   };
 
-  const handleDeleteCliente = (id: number) => {
+  // --- ELIMINAR CLIENTE ---
+  const handleDeleteCliente = async (id: number) => {
     if (confirm('¿Estás seguro de eliminar este cliente?')) {
-      setClientes(prev => prev.filter(c => c.id !== id));
+      try {
+        await axios.delete(`https://api.yahirdev.dev/api/clients/${id}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setClientes(prev => prev.filter(c => c.id !== id));
+      } catch (error) {
+        console.error("Error al eliminar", error);
+        alert("No se pudo eliminar el cliente.");
+      }
     }
   };
 

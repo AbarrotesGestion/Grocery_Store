@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import axios from 'axios';
 import { 
   HiOutlineArrowLeft, 
   HiOutlineTrash, 
@@ -8,32 +9,78 @@ import {
   HiOutlineArchiveBoxXMark
 } from 'react-icons/hi2';
 
+// 1. Interfaz alineada a la respuesta del backend
 export interface ProductoEliminado {
   id: number;
-  nombre: string;
-  categoria: string;
-  fechaEliminacion: string;
+  name: string;
+  deleted_at: string;
+  category?: {
+    id: number;
+    name: string;
+  };
 }
 
-export default function ProductosEliminados() {
-  const [trashedProducts, setTrashedProducts] = useState<ProductoEliminado[]>([
-    {
-      id: 101,
-      nombre: 'Galletas Chokis 90g',
-      categoria: 'Botanas',
-      fechaEliminacion: '05/08/2026',
-    },
-  ]);
+const extraerMensajeError = (error: any) => {
+  const data = error.response?.data;
+  return data?.message ?? data?.error ?? 'Ocurrió un error inesperado';
+};
 
-  const handleRestore = (id: number) => {
-    if (confirm('¿Deseas restaurar este producto al catálogo activo?')) {
-      setTrashedProducts(prev => prev.filter(p => p.id !== id));
+export default function ProductosEliminados() {
+  const [trashedProducts, setTrashedProducts] = useState<ProductoEliminado[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  // 2. Cargar productos en la papelera
+  useEffect(() => {
+    const fetchTrashedProducts = async () => {
+      setIsLoading(true);
+      try {
+        const token = localStorage.getItem('token');
+        const response = await axios.get('https://api.yahirdev.dev/api/products/trashed', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        
+        // Asumiendo que el backend devuelve un array directo o envuelto en { data: [...] }
+        const data = response.data.data || response.data;
+        setTrashedProducts(Array.isArray(data) ? data : []);
+      } catch (error) {
+        console.error('Error al cargar papelera:', extraerMensajeError(error));
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchTrashedProducts();
+  }, [refreshTrigger]);
+
+  // 3. Restaurar producto
+  const handleRestore = async (id: number) => {
+    if (window.confirm('¿Deseas restaurar este producto al catálogo activo?')) {
+      try {
+        const token = localStorage.getItem('token');
+        await axios.post(`https://api.yahirdev.dev/api/products/${id}/restore`, {}, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        alert('Producto restaurado exitosamente.');
+        setRefreshTrigger(prev => prev + 1);
+      } catch (error) {
+        alert(extraerMensajeError(error));
+      }
     }
   };
 
-  const handleForceDelete = (id: number) => {
-    if (confirm('¡Atención! Esta acción eliminará permanentemente el producto y no se podrá recuperar. ¿Continuar?')) {
-      setTrashedProducts(prev => prev.filter(p => p.id !== id));
+  // 4. Eliminar permanentemente
+  const handleForceDelete = async (id: number) => {
+    if (window.confirm('¡Atención! Esta acción eliminará permanentemente el producto de la base de datos y no se podrá recuperar. ¿Continuar?')) {
+      try {
+        const token = localStorage.getItem('token');
+        await axios.delete(`https://api.yahirdev.dev/api/products/${id}/force-delete`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        alert('Producto eliminado permanentemente.');
+        setRefreshTrigger(prev => prev + 1);
+      } catch (error) {
+        alert(extraerMensajeError(error));
+      }
     }
   };
 
@@ -42,7 +89,7 @@ export default function ProductosEliminados() {
       
       <div>
         <Link 
-          to="/products" 
+          to="/Inventario" 
           className="inline-flex items-center gap-2 text-sm text-gris-calido/70 hover:text-neo-mint transition-colors"
         >
           <HiOutlineArrowLeft className="text-base" />
@@ -72,40 +119,49 @@ export default function ProductosEliminados() {
               </tr>
             </thead>
             <tbody className="divide-y divide-dark-border">
-              {trashedProducts.length > 0 ? (
-                trashedProducts.map((prod) => (
-                  <tr key={prod.id} className="hover:bg-dark-bg/40 transition-colors">
-                    <td className="py-4 px-6 font-medium text-white">{prod.nombre}</td>
-                    <td className="py-4 px-6">
-                      <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-dark-bg text-gris-calido border border-dark-border">
-                        {prod.categoria}
-                      </span>
-                    </td>
-                    <td className="py-4 px-6 text-xs text-rose-400/80 font-medium">{prod.fechaEliminacion}</td>
-                    <td className="py-4 px-6 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <button 
-                          type="button"
-                          title="Restaurar Producto"
-                          onClick={() => handleRestore(prod.id)}
-                          className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-lg text-xs font-semibold hover:bg-emerald-500/20 transition-all"
-                        >
-                          <HiOutlineArrowPath className="text-sm" />
-                          Restaurar
-                        </button>
+              {isLoading ? (
+                <tr>
+                  <td colSpan={4} className="py-8 text-center text-neo-mint">Cargando papelera...</td>
+                </tr>
+              ) : trashedProducts.length > 0 ? (
+                trashedProducts.map((prod) => {
+                  // Limpieza básica de la fecha (si viene con formato ISO)
+                  const fechaLimpia = prod.deleted_at ? prod.deleted_at.split('T')[0] : 'Desconocida';
 
-                        <button 
-                          type="button"
-                          title="Eliminar Definitivamente"
-                          onClick={() => handleForceDelete(prod.id)}
-                          className="p-1.5 hover:bg-dark-bg rounded-md text-rose-500 hover:text-rose-400 transition-colors"
-                        >
-                          <HiOutlineXMark className="text-lg" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                  return (
+                    <tr key={prod.id} className="hover:bg-dark-bg/40 transition-colors">
+                      <td className="py-4 px-6 font-medium text-white">{prod.name}</td>
+                      <td className="py-4 px-6">
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-dark-bg text-gris-calido border border-dark-border">
+                          {prod.category?.name || 'Sin categoría'}
+                        </span>
+                      </td>
+                      <td className="py-4 px-6 text-xs text-rose-400/80 font-medium">{fechaLimpia}</td>
+                      <td className="py-4 px-6 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <button 
+                            type="button"
+                            title="Restaurar Producto"
+                            onClick={() => handleRestore(prod.id)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-lg text-xs font-semibold hover:bg-emerald-500/20 transition-all"
+                          >
+                            <HiOutlineArrowPath className="text-sm" />
+                            Restaurar
+                          </button>
+
+                          <button 
+                            type="button"
+                            title="Eliminar Definitivamente"
+                            onClick={() => handleForceDelete(prod.id)}
+                            className="p-1.5 hover:bg-dark-bg rounded-md text-rose-500 hover:text-rose-400 transition-colors"
+                          >
+                            <HiOutlineXMark className="text-lg" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               ) : (
                 <tr>
                   <td colSpan={4} className="py-16 text-center">

@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import axios from 'axios';
 import { 
   HiOutlineArrowLeft, 
   HiOutlineCube, 
@@ -8,41 +9,83 @@ import {
   HiOutlineScale,
   HiOutlineInboxStack
 } from 'react-icons/hi2';
-import ProductoModal, { type ProductoData } from './ProductoModal';
+import ProductoModal from './ProductoModal';
+
+// Declaramos la interfaz aquí mismo para evitar el error de Vite
+export interface Producto {
+  id: number;
+  name: string;
+  description: string;
+  price: number | string;
+  purchase_price: number | string;
+  stock?: number;
+  min_stock?: number;
+  category_id: number;
+  supplier_id?: number | null;
+  barcode?: string;
+  package_size?: number;
+  stock_in_units?: number;
+  price_per_unit?: number | string;
+  price_per_package?: number | string;
+  price_per_kg?: number | string;
+  allows_unit_sale?: boolean;
+  allows_package_sale?: boolean;
+  allows_weight_sale?: boolean;
+  category?: {
+    id: number;
+    name: string;
+  };
+}
+
+const extraerMensajeError = (error: any) => {
+  const data = error.response?.data;
+  return data?.message ?? data?.error ?? 'Ocurrió un error inesperado';
+};
 
 export default function ProductoDetalle() {
   const { id } = useParams();
 
-  const categoriasList = [
-    { id: 1, nombre: 'Bebidas' },
-    { id: 2, nombre: 'Abarrotes' },
-    { id: 3, nombre: 'Limpieza' },
-  ];
-
-  const proveedoresList = [
-    { id: 1, nombre: 'Distribuidora Central' },
-  ];
-
-  const [producto, setProducto] = useState<ProductoData>({
-    id: Number(id) || 1,
-    name: 'Aceite Vegetal 900ml',
-    category_id: 1,
-    description: 'Aceite vegetal comestible, perfecto para freír y cocinar.',
-    stock: 30,
-    min_stock: 5,
-    purchase_price: 22.00,
-    price: 32.00,
-    barcode: '7501000123456',
-    allows_unit_sale: true,
-    allows_package_sale: false,
-    allows_weight_sale: false,
-  });
-
+  const [producto, setProducto] = useState<Producto | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState('');
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const ganancia = producto.price - producto.purchase_price;
-  const margenUtilidad = producto.purchase_price > 0 
-    ? ((ganancia / producto.purchase_price) * 100).toFixed(1)
+  useEffect(() => {
+    const fetchProducto = async () => {
+      setIsLoading(true);
+      try {
+        const token = localStorage.getItem('token');
+        const response = await axios.get(`https://api.yahirdev.dev/api/products/${id}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        
+        setProducto(response.data.data || response.data);
+      } catch (error) {
+        console.error('Error al cargar el producto:', error);
+        setErrorMsg('No se pudo encontrar la información de este producto.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchProducto();
+  }, [id, refreshTrigger]);
+
+  if (isLoading) {
+    return <div className="p-6 bg-dark-bg text-neo-mint min-h-screen flex items-center justify-center">Cargando producto...</div>;
+  }
+
+  if (errorMsg || !producto) {
+    return <div className="p-6 bg-dark-bg text-rose-500 min-h-screen flex items-center justify-center">{errorMsg || 'Producto no encontrado'}</div>;
+  }
+
+  // Cálculos seguros convirtiendo a números
+  const precioVenta = parseFloat(String(producto.price || 0));
+  const costoCompra = parseFloat(String(producto.purchase_price || 0));
+  const ganancia = precioVenta - costoCompra;
+  const margenUtilidad = costoCompra > 0 
+    ? ((ganancia / costoCompra) * 100).toFixed(1)
     : '0.0';
 
   return (
@@ -50,7 +93,7 @@ export default function ProductoDetalle() {
       
       <div className="flex items-center justify-between">
         <Link 
-          to="/products" 
+          to="/Inventario" 
           className="inline-flex items-center gap-2 text-sm text-gris-calido/70 hover:text-neo-mint transition-colors"
         >
           <HiOutlineArrowLeft className="text-base" />
@@ -69,14 +112,14 @@ export default function ProductoDetalle() {
 
       <div className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-xl p-6 flex items-center justify-between text-white shadow-lg">
         <div className="flex items-center gap-5">
-          <div className="p-4 bg-white/10 rounded-2xl backdrop-blur-md">
+          <div className="p-4 bg-white/10 rounded-2xl backdrop-blur-md shrink-0">
             <HiOutlineCube className="text-4xl text-neo-mint" />
           </div>
           <div>
             <h1 className="text-2xl font-bold">{producto.name}</h1>
-            <div className="flex items-center gap-3 mt-1">
+            <div className="flex flex-wrap items-center gap-3 mt-1">
               <span className="px-3 py-0.5 bg-white/20 rounded-full text-xs font-semibold backdrop-blur-sm">
-                Categoría ID: #{producto.category_id}
+                Categoría: {producto.category?.name || `#${producto.category_id}`}
               </span>
               {producto.barcode && (
                 <span className="text-xs font-mono opacity-80">
@@ -91,12 +134,12 @@ export default function ProductoDetalle() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-dark-card border border-dark-border p-5 rounded-xl text-center">
           <p className="text-xs font-semibold text-gris-calido/60 uppercase tracking-wider">Costo de Compra</p>
-          <h3 className="text-2xl font-bold text-white mt-1">${producto.purchase_price.toFixed(2)}</h3>
+          <h3 className="text-2xl font-bold text-white mt-1">${costoCompra.toFixed(2)}</h3>
         </div>
 
         <div className="bg-dark-card border border-dark-border p-5 rounded-xl text-center">
-          <p className="text-xs font-semibold text-ghost-blue uppercase tracking-wider">Precio de Venta</p>
-          <h3 className="text-2xl font-bold text-ghost-blue mt-1">${producto.price.toFixed(2)}</h3>
+          <p className="text-xs font-semibold text-ghost-blue uppercase tracking-wider">Precio Base de Venta</p>
+          <h3 className="text-2xl font-bold text-ghost-blue mt-1">${precioVenta.toFixed(2)}</h3>
         </div>
 
         <div className="bg-dark-card border border-dark-border p-5 rounded-xl text-center">
@@ -121,7 +164,11 @@ export default function ProductoDetalle() {
               <span className="text-3xl font-extrabold text-white">{producto.stock || 0}</span>
               <div>
                 <p className="text-xs text-gris-calido/70">Unidades disponibles principales</p>
-                <span className="inline-block mt-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                <span className={`inline-block mt-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${
+                  producto.min_stock && producto.stock <= producto.min_stock 
+                    ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' 
+                    : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                }`}>
                   Stock Mínimo: {producto.min_stock || 0}
                 </span>
               </div>
@@ -191,10 +238,11 @@ export default function ProductoDetalle() {
       <ProductoModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        onSave={(updatedData) => setProducto(updatedData)}
         initialData={producto}
-        categoriasList={categoriasList}
-        proveedoresList={proveedoresList}
+        onSuccess={() => {
+          setIsModalOpen(false);
+          setRefreshTrigger(prev => prev + 1); // Recarga los datos automáticamente
+        }}
       />
 
     </div>

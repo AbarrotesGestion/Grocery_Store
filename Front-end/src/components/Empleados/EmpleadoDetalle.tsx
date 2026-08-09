@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import axios from 'axios';
 import { 
   HiOutlineArrowLeft, 
   HiOutlineUser, 
@@ -10,34 +11,91 @@ import {
   HiOutlineCreditCard,
   HiOutlineCalendar
 } from 'react-icons/hi2';
-import EmpleadoModal, { type EmpleadoData } from './EmpleadoModal';
+import EmpleadoModal from './EmpleadoModal';
+
+// 1. Interfaz alineada exactamente con los campos que valida tu EmployeeController
+export interface Empleado {
+  id?: number;
+  payroll_id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone: string;
+  full_address: string;
+  hourly_rate: number;
+  card_number: string;
+  role_id: number | string;
+  role?: {
+    id: number;
+    name: string;
+  };
+  created_at?: string;
+}
 
 export default function EmpleadoDetalle() {
   const { id } = useParams();
 
-  const [empleado, setEmpleado] = useState<EmpleadoData>({
-    id: Number(id) || 1,
-    idNomina: 'CAJ-001',
-    nombre: 'Rosa',
-    apellido: 'Melano',
-    rol: 'Cajero',
-    tarifaHora: 80.00,
-    email: 'rosa.cajera@tienda.com',
-    telefono: '3300002222',
-    domicilio: 'Av. Las Palmas 120, Col. Centro',
-    cuentaDeposito: '**** **** **** 1200',
-    fechaRegistro: '03 de Mar, 2026',
-    estado: 'Activo',
-  });
-
+  const [empleado, setEmpleado] = useState<Empleado | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState('');
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  // 2. Petición para traer los datos del empleado desde Laravel
+  useEffect(() => {
+    const fetchEmpleado = async () => {
+      setIsLoading(true);
+      try {
+        const token = localStorage.getItem('token');
+        const response = await axios.get(`https://api.yahirdev.dev/api/employees/${id}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+
+        const dataRevisada = response.data.data || response.data;
+        setEmpleado(dataRevisada);
+      } catch (error) {
+        console.error('Error al cargar el empleado:', error);
+        setErrorMsg('No se pudo cargar la información del empleado.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchEmpleado();
+  }, [id, refreshTrigger]);
+
+  // 3. Guardar cambios actualizados enviando las variables exactas que pide el controlador
+  const handleSaveEmpleado = async (updatedData: Empleado) => {
+    try {
+      const token = localStorage.getItem('token');
+      await axios.put(`https://api.yahirdev.dev/api/employees/${id}`, updatedData, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      setRefreshTrigger(prev => prev + 1);
+      setIsModalOpen(false);
+    } catch (error) {
+      console.error('Error al actualizar el empleado:', error);
+      alert('Hubo un error al guardar los cambios en el servidor.');
+    }
+  };
+
+  if (isLoading) {
+    return <div className="p-6 bg-dark-bg text-neo-mint min-h-screen flex items-center justify-center">Cargando perfil del empleado...</div>;
+  }
+
+  if (errorMsg || !empleado) {
+    return <div className="p-6 bg-dark-bg text-rose-500 min-h-screen flex items-center justify-center">{errorMsg || 'Empleado no encontrado'}</div>;
+  }
+
+  const fechaLimpia = empleado.created_at ? empleado.created_at.split('T')[0] : 'N/A';
 
   return (
     <div className="p-6 bg-dark-bg text-gris-calido min-h-screen space-y-6">
       
       <div className="flex items-center justify-between">
         <Link 
-          to="/employees" 
+          to="/Empleados" 
           className="inline-flex items-center gap-2 text-sm text-gris-calido/70 hover:text-neo-mint transition-colors"
         >
           <HiOutlineArrowLeft className="text-base" />
@@ -61,21 +119,22 @@ export default function EmpleadoDetalle() {
               <HiOutlineUser className="text-4xl" />
             </div>
             
-            <h1 className="text-2xl font-bold text-white">{empleado.nombre} {empleado.apellido}</h1>
+            <h1 className="text-2xl font-bold text-white">{empleado.first_name} {empleado.last_name}</h1>
             
+            {/* Pintamos el rol real que viene de la relación with('role') */}
             <span className="px-3 py-1 bg-ghost-blue/10 text-ghost-blue text-xs font-semibold rounded-full border border-ghost-blue/20">
-              {empleado.rol}
+              {empleado.role ? empleado.role.name : 'Sin rol asignado'}
             </span>
 
             <div className="w-full border-t border-dark-border pt-4 text-left space-y-3 text-xs">
               <div>
                 <p className="text-gris-calido/60 uppercase font-semibold">ID Nómina</p>
-                <p className="text-white font-bold font-mono">{empleado.idNomina}</p>
+                <p className="text-white font-bold font-mono">{empleado.payroll_id}</p>
               </div>
 
               <div>
                 <p className="text-gris-calido/60 uppercase font-semibold">Sueldo Base</p>
-                <p className="text-emerald-400 font-bold text-sm">${empleado.tarifaHora.toFixed(2)} / hora</p>
+                <p className="text-emerald-400 font-bold text-sm">${Number(empleado.hourly_rate).toFixed(2)} / hora</p>
               </div>
             </div>
           </div>
@@ -99,7 +158,7 @@ export default function EmpleadoDetalle() {
               <p className="text-gris-calido/60 font-semibold uppercase">Teléfono de Contacto</p>
               <p className="text-white font-medium flex items-center gap-2">
                 <HiOutlinePhone className="text-neo-mint" />
-                {empleado.telefono || 'Sin teléfono'}
+                {empleado.phone}
               </p>
             </div>
 
@@ -107,15 +166,15 @@ export default function EmpleadoDetalle() {
               <p className="text-gris-calido/60 font-semibold uppercase">Dirección de Vivienda</p>
               <p className="text-white font-medium flex items-center gap-2">
                 <HiOutlineMapPin className="text-rose-400" />
-                {empleado.domicilio || 'No registrada'}
+                {empleado.full_address}
               </p>
             </div>
 
             <div className="space-y-1 border-t border-dark-border pt-4">
-              <p className="text-gris-calido/60 font-semibold uppercase">Método de Pago (Tarjeta)</p>
+              <p className="text-gris-calido/60 font-semibold uppercase">Número de Tarjeta (Depósito)</p>
               <p className="text-white font-medium flex items-center gap-2 font-mono">
                 <HiOutlineCreditCard className="text-amber-400" />
-                {empleado.cuentaDeposito || '**** **** **** ****'}
+                {empleado.card_number}
               </p>
             </div>
 
@@ -123,7 +182,7 @@ export default function EmpleadoDetalle() {
               <p className="text-gris-calido/60 font-semibold uppercase">Fecha de Registro</p>
               <p className="text-white font-medium flex items-center gap-2">
                 <HiOutlineCalendar className="text-neo-mint" />
-                {empleado.fechaRegistro || '03 de Mar, 2026'}
+                {fechaLimpia}
               </p>
             </div>
           </div>
@@ -133,7 +192,7 @@ export default function EmpleadoDetalle() {
       <EmpleadoModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        onSave={(data) => setEmpleado(data)}
+        onSave={handleSaveEmpleado}
         initialData={empleado}
       />
     </div>

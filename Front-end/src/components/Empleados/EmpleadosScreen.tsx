@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 import { 
   HiPlus, 
   HiOutlineUser, 
@@ -10,51 +11,97 @@ import {
   HiOutlineTrash,
   HiOutlineMagnifyingGlass 
 } from 'react-icons/hi2';
-import EmpleadoModal, { type EmpleadoData } from './EmpleadoModal';
+import EmpleadoModal from './EmpleadoModal';
+import { type Empleado } from './EmpleadoDetalle';
 
 export default function EmpleadosScreen() {
   const navigate = useNavigate();
 
-  const [empleados, setEmpleados] = useState<EmpleadoData[]>([
-    { id: 1, idNomina: 'CAJ-001', nombre: 'Rosa', apellido: 'Melano', rol: 'Cajero', tarifaHora: 80.00, email: 'rosa.cajera@tienda.com', telefono: '3300002222', domicilio: 'Av. Las Palmas 120', cuentaDeposito: '4152313188991200', fechaRegistro: '03 de Mar, 2026', estado: 'Activo' },
-    { id: 2, idNomina: 'ALM-001', nombre: 'Alberto', apellido: 'Macen', rol: 'Almacenista', tarifaHora: 85.00, email: 'alberto.stock@tienda.com', telefono: '3300003333', domicilio: 'Calle Roble 45', cuentaDeposito: '4152313188991201', fechaRegistro: '03 de Mar, 2026', estado: 'Activo' },
-    { id: 3, idNomina: 'ADM-002', nombre: 'Yahir', apellido: 'Hernández', rol: 'Administrador', tarifaHora: 0.00, email: 'yahir@gmail.com', telefono: '3319800229', domicilio: 'Hacienda Santa Fe', cuentaDeposito: '4152313188991202', fechaRegistro: '01 de Ene, 2026', estado: 'Activo' },
-    { id: 4, idNomina: 'Gui-0403', nombre: 'Guillermo', apellido: 'Esparza', rol: 'Almacenista', tarifaHora: 90.00, email: 'guillermo@gmail.com', telefono: '2233134678', domicilio: 'Av. Vallarta 890', cuentaDeposito: '4152313188991203', fechaRegistro: '03 de Mar, 2026', estado: 'Activo' },
-  ]);
-
+  const [empleados, setEmpleados] = useState<Empleado[]>([]);
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedEmpleado, setSelectedEmpleado] = useState<EmpleadoData | null>(null);
+  const [selectedEmpleado, setSelectedEmpleado] = useState<Empleado | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  // 1. Petición para listar empleados desde Laravel
+  useEffect(() => {
+    const fetchEmpleados = async () => {
+      setIsLoading(true);
+      try {
+        const token = localStorage.getItem('token');
+        const response = await axios.get('https://api.yahirdev.dev/api/employees', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+
+        const dataRevisada = response.data.data || response.data;
+        setEmpleados(Array.isArray(dataRevisada) ? dataRevisada : []);
+      } catch (error) {
+        console.error('Error al cargar empleados:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchEmpleados();
+  }, [refreshTrigger]);
 
   const handleOpenNewModal = () => {
     setSelectedEmpleado(null);
     setIsModalOpen(true);
   };
 
-  const handleOpenEditModal = (emp: EmpleadoData) => {
+  const handleOpenEditModal = (emp: Empleado) => {
     setSelectedEmpleado(emp);
     setIsModalOpen(true);
   };
 
-  const handleSaveEmpleado = (data: EmpleadoData) => {
-    if (data.id) {
-      setEmpleados(prev => prev.map(e => e.id === data.id ? data : e));
-    } else {
-      const newEmp = { ...data, id: Date.now(), fechaRegistro: '06 de Ago, 2026' };
-      setEmpleados(prev => [newEmp, ...prev]);
+  // 2. Guardar o actualizar un empleado en Laravel
+  const handleSaveEmpleado = async (data: Empleado) => {
+    try {
+      const token = localStorage.getItem('token');
+      const headers = { Authorization: `Bearer ${token}` };
+
+      if (data.id) {
+        await axios.put(`https://api.yahirdev.dev/api/employees/${data.id}`, data, { headers });
+      } else {
+        await axios.post('https://api.yahirdev.dev/api/employees', data, { headers });
+      }
+
+      setRefreshTrigger(prev => prev + 1);
+      setIsModalOpen(false);
+    } catch (error) {
+      console.error('Error al guardar el empleado:', error);
+      alert('Hubo un error al guardar el registro en el servidor.');
     }
   };
 
-  const handleDeleteEmpleado = (id: number) => {
-    if (confirm('¿Deseas dar de baja a este empleado?')) {
-      setEmpleados(prev => prev.filter(e => e.id !== id));
+  // 3. Eliminar empleado en Laravel
+  const handleDeleteEmpleado = async (id: number) => {
+    if (window.confirm('¿Deseas dar de baja a este empleado?')) {
+      try {
+        const token = localStorage.getItem('token');
+        await axios.delete(`https://api.yahirdev.dev/api/employees/${id}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+
+        setEmpleados(prev => prev.filter(e => e.id !== id));
+      } catch (error: any) {
+        console.error('Error al eliminar:', error);
+        const mensaje = error.response?.data?.error || 'No se pudo eliminar el empleado.';
+        alert(mensaje);
+      }
     }
   };
 
-  const empleadosFiltrados = empleados.filter(e => {
+  // Filtrado seguro usando las propiedades de la API
+  const empleadosFiltrados = (Array.isArray(empleados) ? empleados : []).filter(e => {
     const query = search.toLowerCase();
-    const nombreCompleto = `${e.nombre} ${e.apellido}`.toLowerCase();
-    return nombreCompleto.includes(query) || e.idNomina.toLowerCase().includes(query) || e.rol.toLowerCase().includes(query);
+    const nombreCompleto = `${e.first_name || ''} ${e.last_name || ''}`.toLowerCase();
+    const payroll = e.payroll_id || '';
+    const rolNombre = e.role?.name || '';
+    
+    return nombreCompleto.includes(query) || payroll.toLowerCase().includes(query) || rolNombre.toLowerCase().includes(query);
   });
 
   return (
@@ -99,12 +146,18 @@ export default function EmpleadosScreen() {
               </tr>
             </thead>
             <tbody className="divide-y divide-dark-border">
-              {empleadosFiltrados.length > 0 ? (
+              {isLoading ? (
+                <tr>
+                  <td colSpan={5} className="py-8 text-center text-neo-mint">
+                    Cargando empleados...
+                  </td>
+                </tr>
+              ) : empleadosFiltrados.length > 0 ? (
                 empleadosFiltrados.map((emp) => (
                   <tr key={emp.id} className="hover:bg-dark-bg/40 transition-colors">
                     
                     <td className="py-4 px-6 font-semibold text-ghost-blue font-mono">
-                      {emp.idNomina}
+                      {emp.payroll_id}
                     </td>
 
                     <td className="py-4 px-6">
@@ -113,15 +166,15 @@ export default function EmpleadosScreen() {
                           <HiOutlineUser className="text-base" />
                         </div>
                         <div>
-                          <p className="font-medium text-white">{emp.nombre} {emp.apellido}</p>
-                          <p className="text-xs text-gris-calido/60">Tarifa: ${emp.tarifaHora.toFixed(2)}/hr</p>
+                          <p className="font-medium text-white">{emp.first_name} {emp.last_name}</p>
+                          <p className="text-xs text-gris-calido/60">Tarifa: ${Number(emp.hourly_rate || 0).toFixed(2)}/hr</p>
                         </div>
                       </div>
                     </td>
 
                     <td className="py-4 px-6 text-center">
                       <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-ghost-blue/10 text-ghost-blue border border-ghost-blue/20">
-                        {emp.rol}
+                        {emp.role ? emp.role.name : 'Sin rol'}
                       </span>
                     </td>
 
@@ -130,10 +183,10 @@ export default function EmpleadosScreen() {
                         <HiOutlineEnvelope className="text-ghost-blue shrink-0" />
                         <span>{emp.email}</span>
                       </div>
-                      {emp.telefono && (
+                      {emp.phone && (
                         <div className="flex items-center gap-2 text-gris-calido">
                           <HiOutlinePhone className="text-neo-mint shrink-0" />
-                          <span>{emp.telefono}</span>
+                          <span>{emp.phone}</span>
                         </div>
                       )}
                     </td>

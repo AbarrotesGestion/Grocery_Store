@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 import { 
   HiPlus, 
   HiOutlineCube, 
@@ -9,105 +10,100 @@ import {
   HiOutlineMagnifyingGlass,
   HiOutlineArchiveBox
 } from 'react-icons/hi2';
-import ProductoModal, { type ProductoData } from './ProductoModal';
+import ProductoModal from './ProductoModal';
+
+// 1. Interfaz adaptada al backend
+export interface Producto {
+  id: number;
+  name: string;
+  description: string;
+  price: number | string;
+  purchase_price: number | string;
+  stock?: number;
+  min_stock?: number;
+  category_id: number;
+  supplier_id?: number | null;
+  barcode?: string;
+  package_size?: number;
+  stock_in_units?: number;
+  price_per_unit?: number | string;
+  price_per_package?: number | string;
+  price_per_kg?: number | string;
+  allows_unit_sale?: boolean;
+  allows_package_sale?: boolean;
+  allows_weight_sale?: boolean;
+  category?: {
+    id: number;
+    name: string;
+  };
+}
+
+const extraerMensajeError = (error: any) => {
+  const data = error.response?.data;
+  return data?.message ?? data?.error ?? 'Ocurrió un error inesperado';
+};
 
 export default function ProductosScreen() {
   const navigate = useNavigate();
 
-  const categoriasList = [
-    { id: 1, nombre: 'Bebidas' },
-    { id: 2, nombre: 'Abarrotes' },
-    { id: 3, nombre: 'Limpieza' },
-    { id: 4, nombre: 'Carnes y Embutidos' },
-    { id: 5, nombre: 'Lácteos' },
-    { id: 6, nombre: 'Panadería' },
-    { id: 7, nombre: 'Botanas' },
-  ];
-
-  const proveedoresList = [
-    { id: 1, nombre: 'Distribuidora Central' },
-    { id: 2, nombre: 'Comercializadora del Sur' },
-  ];
-
-  const [productos, setProductos] = useState<ProductoData[]>([
-    { 
-      id: 1, 
-      name: 'Aceite Vegetal 900ml', 
-      category_id: 1, 
-      description: 'Aceite vegetal comestible, perfecto para freír y cocinar.', 
-      stock: 30, 
-      min_stock: 5, 
-      purchase_price: 22.00, 
-      price: 32.00,
-      allows_unit_sale: true,
-      allows_package_sale: false,
-      allows_weight_sale: false 
-    },
-    { 
-      id: 2, 
-      name: 'Arroz Súper Extra 1kg', 
-      category_id: 2, 
-      description: 'Arroz de grano largo seleccionado.', 
-      stock: 50, 
-      min_stock: 10, 
-      purchase_price: 12.50, 
-      price: 18.00,
-      allows_unit_sale: true,
-      allows_package_sale: false,
-      allows_weight_sale: false 
-    },
-    { 
-      id: 3, 
-      name: 'Coca Cola 2.5L', 
-      category_id: 1, 
-      description: 'Refresco embotellado no retornable.', 
-      stock: 100, 
-      min_stock: 15, 
-      purchase_price: 28.00, 
-      price: 38.00,
-      allows_unit_sale: true,
-      allows_package_sale: true,
-      package_size: 12,
-      price_per_package: 420.00,
-      allows_weight_sale: false 
-    },
-  ]);
-
+  const [productos, setProductos] = useState<Producto[]>([]);
   const [search, setSearch] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState<ProductoData | null>(null);
+  const [selectedProduct, setSelectedProduct] = useState<Producto | null>(null);
+
+  // 2. Fetch de productos desde Laravel
+  useEffect(() => {
+    const fetchProductos = async () => {
+      setIsLoading(true);
+      try {
+        const token = localStorage.getItem('token');
+        const response = await axios.get('https://api.yahirdev.dev/api/products', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        
+        const data = response.data.data || response.data;
+        setProductos(Array.isArray(data) ? data : []);
+      } catch (error) {
+        console.error('Error al cargar productos:', extraerMensajeError(error));
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchProductos();
+  }, [refreshTrigger]);
 
   const handleOpenNewModal = () => {
     setSelectedProduct(null);
     setIsModalOpen(true);
   };
 
-  const handleOpenEditModal = (prod: ProductoData) => {
+  const handleOpenEditModal = (prod: Producto) => {
     setSelectedProduct(prod);
     setIsModalOpen(true);
   };
 
-  const handleSaveProduct = (data: ProductoData) => {
-    if (data.id) {
-      setProductos(prev => prev.map(p => p.id === data.id ? data : p));
-    } else {
-      const newProd = { ...data, id: Date.now() };
-      setProductos(prev => [newProd, ...prev]);
+  // 3. Eliminar producto conectado a la API (Soft Delete)
+  const handleDeleteProduct = async (id: number) => {
+    if (window.confirm('¿Deseas enviar este producto a eliminados?')) {
+      try {
+        const token = localStorage.getItem('token');
+        await axios.delete(`https://api.yahirdev.dev/api/products/${id}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setRefreshTrigger(prev => prev + 1); // Refresca la tabla
+      } catch (error) {
+        alert(extraerMensajeError(error));
+      }
     }
-  };
-
-  const handleDeleteProduct = (id: number) => {
-    if (confirm('¿Deseas enviar este producto a eliminados?')) {
-      setProductos(prev => prev.filter(p => p.id !== id));
-    }
-  };
-
-  const getNombreCategoria = (catId: number) => {
-    return categoriasList.find(c => c.id === catId)?.nombre || 'Sin categoría';
   };
 
   const productosFiltrados = productos.filter(p =>
-    p.name.toLowerCase().includes(search.toLowerCase())
+    p.name.toLowerCase().includes(search.toLowerCase()) ||
+    p.barcode?.toLowerCase().includes(search.toLowerCase()) ||
+    p.category?.name.toLowerCase().includes(search.toLowerCase())
   );
 
   return (
@@ -144,7 +140,7 @@ export default function ProductosScreen() {
         <HiOutlineMagnifyingGlass className="text-xl text-gris-calido/60" />
         <input 
           type="text"
-          placeholder="Buscar producto por nombre..."
+          placeholder="Buscar producto por nombre, código o categoría..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="bg-transparent border-none outline-none text-sm text-white w-full placeholder:text-gris-calido/50"
@@ -166,9 +162,16 @@ export default function ProductosScreen() {
               </tr>
             </thead>
             <tbody className="divide-y divide-dark-border">
-              {productosFiltrados.length > 0 ? (
+              {isLoading ? (
+                <tr>
+                  <td colSpan={7} className="py-8 text-center text-neo-mint">Cargando catálogo de productos...</td>
+                </tr>
+              ) : productosFiltrados.length > 0 ? (
                 productosFiltrados.map((prod) => {
-                  const ganancia = (prod.price - prod.purchase_price).toFixed(2);
+                  const pCompra = parseFloat(String(prod.purchase_price || 0));
+                  const pVenta = parseFloat(String(prod.price || 0));
+                  const ganancia = (pVenta - pCompra).toFixed(2);
+                  
                   const currentStock = prod.stock || 0;
                   const minStock = prod.min_stock || 0;
                   const isStockBajo = currentStock <= minStock;
@@ -177,7 +180,7 @@ export default function ProductosScreen() {
                     <tr key={prod.id} className="hover:bg-dark-bg/40 transition-colors">
                       
                       <td className="py-4 px-6 font-medium text-white flex items-center gap-3">
-                        <div className="p-2 bg-neo-mint/10 rounded-lg text-neo-mint">
+                        <div className="p-2 bg-neo-mint/10 rounded-lg text-neo-mint shrink-0">
                           <HiOutlineCube className="text-lg" />
                         </div>
                         <div>
@@ -188,16 +191,16 @@ export default function ProductosScreen() {
 
                       <td className="py-4 px-6">
                         <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-dark-bg text-gris-calido border border-dark-border">
-                          {getNombreCategoria(prod.category_id)}
+                          {prod.category?.name || 'Sin categoría'}
                         </span>
                       </td>
 
                       <td className="py-4 px-6 text-right font-medium text-gris-calido">
-                        ${prod.purchase_price.toFixed(2)}
+                        ${pCompra.toFixed(2)}
                       </td>
 
                       <td className="py-4 px-6 text-right font-bold text-white">
-                        ${prod.price.toFixed(2)}
+                        ${pVenta.toFixed(2)}
                       </td>
 
                       <td className="py-4 px-6 text-right font-bold text-emerald-400">
@@ -251,7 +254,7 @@ export default function ProductosScreen() {
               ) : (
                 <tr>
                   <td colSpan={7} className="py-8 text-center text-gris-calido/50">
-                    No se encontraron productos.
+                    No se encontraron productos en el catálogo.
                   </td>
                 </tr>
               )}
@@ -263,10 +266,11 @@ export default function ProductosScreen() {
       <ProductoModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        onSave={handleSaveProduct}
         initialData={selectedProduct}
-        categoriasList={categoriasList}
-        proveedoresList={proveedoresList}
+        onSuccess={() => {
+          setIsModalOpen(false);
+          setRefreshTrigger(prev => prev + 1); // Dispara la recarga de productos
+        }}
       />
     </div>
   );

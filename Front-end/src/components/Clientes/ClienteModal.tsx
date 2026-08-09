@@ -9,6 +9,7 @@ export interface ClienteData {
   telefono: string;
   calleNumero: string;
   colonia: string;
+  credit_limit?: string | number;
 }
 
 interface ClienteModalProps {
@@ -31,12 +32,15 @@ export default function ClienteModal({
     telefono: '',
     calleNumero: '',
     colonia: '',
+    credit_limit: '',
   });
 
-  useEffect(() => {
+useEffect(() => {
     if (initialData) {
+      // eslint-disable-next-line
       setFormData(initialData);
     } else {
+      // eslint-disable-next-line
       setFormData({
         nombre: '',
         apellido: '',
@@ -44,6 +48,7 @@ export default function ClienteModal({
         telefono: '',
         calleNumero: '',
         colonia: '',
+        credit_limit: '',
       });
     }
   }, [initialData, isOpen]);
@@ -157,6 +162,22 @@ export default function ClienteModal({
                 value={formData.colonia}
                 onChange={(e) => setFormData({ ...formData, colonia: e.target.value })}
                 placeholder="Centro"
+                className="w-full bg-dark-bg border border-dark-border rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-neo-mint transition-colors placeholder:text-gris-calido/40"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 mb-4">
+            <div>
+              <label className="block text-xs font-semibold text-gris-calido uppercase tracking-wider mb-2">
+                Límite de Crédito ($)
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                value={formData.credit_limit}
+                onChange={(e) => setFormData({ ...formData, credit_limit: e.target.value })}
+                placeholder="Ej. 1500.00"
                 className="w-full bg-dark-bg border border-dark-border rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-neo-mint transition-colors placeholder:text-gris-calido/40"
               />
             </div>

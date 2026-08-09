@@ -5,12 +5,15 @@ import {
   HiOutlineTag, 
   HiOutlineCube, 
   HiOutlineTrash, 
-  HiOutlineShoppingCart, 
   HiOutlineClock, 
   HiOutlineUserGroup, 
   HiOutlineBanknotes, 
   HiOutlineUsers, 
-  HiOutlineTruck 
+  HiOutlineTruck,
+  HiOutlineCurrencyDollar,
+  HiOutlineShieldCheck,
+  HiOutlineCalculator,
+  HiOutlineDocumentText
 } from 'react-icons/hi2';
 
 interface NavItem {
@@ -37,7 +40,7 @@ export default function Sidebar({ isCollapsed = false }: SidebarProps) {
       items: [
         { name: 'Categorías', href: '/Categorias', icon: HiOutlineTag },
         { name: 'Productos', href: '/Productos', icon: HiOutlineCube },
-        { name: 'Mermas del Producto (No renderizado)', href: '#', icon: HiOutlineTrash },
+        { name: 'Mermas / Ajustes', href: '/ajustes-inventario', icon: HiOutlineTrash },
       ],
     },
     {
@@ -45,15 +48,19 @@ export default function Sidebar({ isCollapsed = false }: SidebarProps) {
       items: [
         { name: 'Historial Ventas', href: '/Ventas', icon: HiOutlineClock },
         { name: 'Mis Clientes', href: '/Clientes', icon: HiOutlineUserGroup },
-        { name: 'Cobros Clientes', href: '/Cliente-Deudas', icon: HiOutlineBanknotes },
+        { name: 'Cobros Clientes', href: '/Cliente-deudas', icon: HiOutlineBanknotes },
+        { name: 'Cortes de Caja', href: '/caja', icon: HiOutlineCalculator },
       ],
     },
     {
       title: 'ADMINISTRACIÓN',
       items: [
         { name: 'Equipo / Empleados', href: '/Empleados', icon: HiOutlineUsers },
-        { name: 'Proveedores (No renderizado)', href: '#', icon: HiOutlineTruck },
-        { name: 'Deudas a Proveedores (No renderizado)', href: '#', icon: HiOutlineTruck },
+        { name: 'Roles de Personal', href: '/roles', icon: HiOutlineShieldCheck },
+        { name: 'Proveedores', href: '/proveedores', icon: HiOutlineTruck },
+        { name: 'Deudas a Proveedores', href: '/deudas-proveedores', icon: HiOutlineTruck },
+        { name: 'Notas de Proveedores', href: '/notas-proveedor', icon: HiOutlineDocumentText },
+        { name: 'Fondos de Proveedores', href: '/fondos-proveedores', icon: HiOutlineCurrencyDollar },
       ],
     },
   ];
@@ -67,7 +74,7 @@ export default function Sidebar({ isCollapsed = false }: SidebarProps) {
       <div>
         <div className={`h-16 flex items-center border-b border-dark-border gap-3 ${isCollapsed ? 'justify-center px-2' : 'px-6'}`}>
           <div className="p-2 bg-neo-mint/10 rounded-lg text-neo-mint shrink-0">
-            <HiOutlineShoppingCart className="text-xl" />
+            <HiOutlineSquares2X2 className="text-xl" />
           </div>
           {!isCollapsed && (
             <div className="flex flex-col whitespace-nowrap">

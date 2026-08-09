@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { HiXMark } from 'react-icons/hi2';
 
+// 1. Traducimos la interfaz al inglés para que coincida con la BD y el archivo padre
 interface CategoriaData {
   id?: number;
-  nombre: string;
-  descripcion: string;
+  name: string;
+  description: string;
 }
 
 interface CategoriaModalProps {
@@ -15,16 +16,14 @@ interface CategoriaModalProps {
 }
 
 export default function CategoriaModal({ isOpen, onClose, onSave, initialData }: CategoriaModalProps) {
-  const [nombre, setNombre] = useState('');
-  const [descripcion, setDescripcion] = useState('');
+  // 2. Actualizamos los estados internos
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
 
   useEffect(() => {
-    if (initialData) {
-      setNombre(initialData.nombre);
-      setDescripcion(initialData.descripcion);
-    } else {
-      setNombre('');
-      setDescripcion('');
+    if (isOpen) {
+      setName(initialData?.name || '');
+      setDescription(initialData?.description || '');
     }
   }, [initialData, isOpen]);
 
@@ -32,7 +31,8 @@ export default function CategoriaModal({ isOpen, onClose, onSave, initialData }:
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSave({ id: initialData?.id, nombre, descripcion });
+    // 3. Enviamos las variables correctas a la función onSave
+    onSave({ id: initialData?.id, name, description });
     onClose();
   };
 
@@ -60,8 +60,8 @@ export default function CategoriaModal({ isOpen, onClose, onSave, initialData }:
             <input 
               type="text"
               required
-              value={nombre}
-              onChange={(e) => setNombre(e.target.value)}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
               placeholder="Ej. Abarrotes, Bebidas..."
               className="w-full bg-dark-bg border border-dark-border rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-neo-mint transition-colors placeholder:text-gris-calido/40"
             />
@@ -73,8 +73,8 @@ export default function CategoriaModal({ isOpen, onClose, onSave, initialData }:
             </label>
             <textarea 
               rows={3}
-              value={descripcion}
-              onChange={(e) => setDescripcion(e.target.value)}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
               placeholder="Breve descripción de los productos..."
               className="w-full bg-dark-bg border border-dark-border rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-neo-mint transition-colors placeholder:text-gris-calido/40 resize-none"
             />

@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 import { 
   HiPlus, 
   HiOutlineDocumentText, 
@@ -10,40 +11,85 @@ import {
   HiOutlineUser
 } from 'react-icons/hi2';
 
+// 1. Interfaz adaptada al controlador (quantity ahora es number para soportar decimales por peso/granel)
 export interface Venta {
   id: number;
-  folio: string;
-  producto: string;
-  precioUnitario: number;
-  cantidad: number;
-  total: number;
-  vendedor: string;
-  fecha: string;
-  hora: string;
+  sale_group_id?: string;
+  quantity: number;
+  sale_unit_type?: 'unit' | 'package' | 'weight';
+  total_price: number;
+  status?: string;
+  created_at: string;
+  product?: {
+    name: string;
+    price: number;
+  };
+  employee?: {
+    first_name: string;
+    last_name: string;
+  };
 }
 
 export default function HistorialVentasScreen() {
   const navigate = useNavigate();
 
-  const [ventas, setVentas] = useState<Venta[]>([
-    { id: 1, folio: '#000001', producto: 'Arroz Súper Extra 1kg', precioUnitario: 18.00, cantidad: 2, total: 36.00, vendedor: 'Rosa', fecha: '03/03/2026', hora: '04:09 AM' },
-    { id: 2, folio: '#000002', producto: 'Coca Cola 2.5L', precioUnitario: 38.00, cantidad: 1, total: 38.00, vendedor: 'Rosa', fecha: '03/03/2026', hora: '04:09 AM' },
-    { id: 3, folio: '#000003', producto: 'Frijol Negro 1kg', precioUnitario: 26.00, cantidad: 1, total: 26.00, vendedor: 'Rosa', fecha: '03/03/2026', hora: '04:09 AM' },
-    { id: 4, folio: '#000004', producto: 'Jamón de Pavo 500g', precioUnitario: 65.00, cantidad: 1, total: 65.00, vendedor: 'Rosa', fecha: '03/03/2026', hora: '04:09 AM' },
-    { id: 5, folio: '#000005', producto: 'Pan Integral Grande', precioUnitario: 48.00, cantidad: 1, total: 48.00, vendedor: 'Rosa', fecha: '03/03/2026', hora: '04:09 AM' },
-    { id: 6, folio: '#000006', producto: 'Aceite Vegetal 900ml', precioUnitario: 32.00, cantidad: 2, total: 64.00, vendedor: 'Rosa', fecha: '03/03/2026', hora: '04:09 AM' },
-    { id: 7, folio: '#000007', producto: 'Leche Entera 1L', precioUnitario: 23.00, cantidad: 3, total: 69.00, vendedor: 'Rosa', fecha: '03/03/2026', hora: '04:09 AM' },
-    { id: 8, folio: '#000008', producto: 'Papas Fritas 150g', precioUnitario: 18.00, cantidad: 5, total: 90.00, vendedor: 'Rosa', fecha: '03/03/2026', hora: '04:09 AM' },
-    { id: 9, folio: '#000009', producto: 'Detergente Ariel 1kg', precioUnitario: 35.00, cantidad: 1, total: 35.00, vendedor: 'Rosa', fecha: '03/03/2026', hora: '04:09 AM' },
-  ]);
-
+  const [ventas, setVentas] = useState<Venta[]>([]);
   const [search, setSearch] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
-  const ventasFiltradas = ventas.filter(v =>
-    v.folio.toLowerCase().includes(search.toLowerCase()) ||
-    v.producto.toLowerCase().includes(search.toLowerCase()) ||
-    v.vendedor.toLowerCase().includes(search.toLowerCase())
-  );
+  // 2. Petición para traer el historial de ventas desde Laravel
+  useEffect(() => {
+    const fetchVentas = async () => {
+      setIsLoading(true);
+      try {
+        const token = localStorage.getItem('token');
+        const response = await axios.get('https://api.yahirdev.dev/api/sales', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+
+        const dataRevisada = response.data.data || response.data;
+        setVentas(Array.isArray(dataRevisada) ? dataRevisada : []);
+      } catch (error) {
+        console.error('Error al cargar el historial de ventas:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchVentas();
+  }, [refreshTrigger]);
+
+  // 3. Función conectada a tu backend para cancelar una venta
+  const handleCancelVenta = async (id: number) => {
+    if (window.confirm('¿Estás seguro de que deseas cancelar esta venta? Se devolverá el stock al inventario.')) {
+      try {
+        const token = localStorage.getItem('token');
+        await axios.post(`https://api.yahirdev.dev/api/sales/${id}/cancel`, {}, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+
+        // Refrescamos la lista de ventas para ver el cambio de estado
+        setRefreshTrigger(prev => prev + 1);
+        alert('Venta cancelada exitosamente.');
+      } catch (error: any) {
+        console.error('Error al cancelar la venta:', error);
+        const mensaje = error.response?.data?.message || 'No se pudo cancelar la venta.';
+        alert(mensaje);
+      }
+    }
+  };
+
+  // Filtrado optimizado considerando las relaciones de la API
+  const ventasFiltradas = (Array.isArray(ventas) ? ventas : []).filter(v => {
+    const query = search.toLowerCase();
+    const folio = String(v.id || '').toLowerCase();
+    const grupo = (v.sale_group_id || '').toLowerCase();
+    const producto = (v.product?.name || '').toLowerCase();
+    const vendedor = `${v.employee?.first_name || ''} ${v.employee?.last_name || ''}`.toLowerCase();
+
+    return folio.includes(query) || grupo.includes(query) || producto.includes(query) || vendedor.includes(query);
+  });
 
   return (
     <div className="p-6 bg-dark-bg text-gris-calido min-h-screen space-y-6">
@@ -67,7 +113,7 @@ export default function HistorialVentasScreen() {
         <HiOutlineMagnifyingGlass className="text-xl text-gris-calido/60" />
         <input 
           type="text"
-          placeholder="Buscar por folio, producto o vendedor..."
+          placeholder="Buscar por ID, producto o vendedor..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="bg-transparent border-none outline-none text-sm text-white w-full placeholder:text-gris-calido/50"
@@ -79,89 +125,111 @@ export default function HistorialVentasScreen() {
           <table className="w-full text-left text-sm text-gris-calido">
             <thead className="bg-dark-bg/80 text-xs uppercase font-semibold text-white/70 border-b border-dark-border">
               <tr>
-                <th className="py-3.5 px-6">Folio</th>
+                <th className="py-3.5 px-6">ID / Folio</th>
                 <th className="py-3.5 px-6">Producto</th>
                 <th className="py-3.5 px-6 text-center">Cantidad</th>
                 <th className="py-3.5 px-6 text-right">Total</th>
                 <th className="py-3.5 px-6">Vendedor</th>
-                <th className="py-3.5 px-6">Fecha</th>
+                <th className="py-3.5 px-6">Fecha y Hora</th>
                 <th className="py-3.5 px-6 text-right">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-dark-border">
-              {ventasFiltradas.length > 0 ? (
-                ventasFiltradas.map((v) => (
-                  <tr key={v.id} className="hover:bg-dark-bg/40 transition-colors">
-                    
-                    <td className="py-4 px-6 font-semibold text-ghost-blue">
-                      {v.folio}
-                    </td>
+              {isLoading ? (
+                <tr>
+                  <td colSpan={7} className="py-8 text-center text-neo-mint">
+                    Cargando historial de ventas...
+                  </td>
+                </tr>
+              ) : ventasFiltradas.length > 0 ? (
+                ventasFiltradas.map((v) => {
+                  const fechaPartes = v.created_at ? v.created_at.split('T') : ['N/A', 'N/A'];
+                  const fecha = fechaPartes[0];
+                  const hora = fechaPartes[1] ? fechaPartes[1].substring(0, 5) : '';
+                  const isCancelled = v.status === 'cancelled';
 
-                    <td className="py-4 px-6">
-                      <p className="font-medium text-white">{v.producto}</p>
-                      <p className="text-xs text-gris-calido/60">${v.precioUnitario.toFixed(2)} c/u</p>
-                    </td>
+                  // Identificador de la unidad de medida según el backend
+                  let unidadTexto = 'unidad(es)';
+                  if (v.sale_unit_type === 'weight') unidadTexto = 'kg';
+                  if (v.sale_unit_type === 'package') unidadTexto = 'paquete(s)';
 
-                    <td className="py-4 px-6 text-center">
-                      <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-dark-bg text-gris-calido border border-dark-border">
-                        {v.cantidad} {v.cantidad === 1 ? 'unidad' : 'unidades'}
-                      </span>
-                    </td>
+                  return (
+                    <tr key={v.id} className={`hover:bg-dark-bg/40 transition-colors ${isCancelled ? 'opacity-50 bg-rose-500/5' : ''}`}>
+                      
+                      <td className="py-4 px-6 font-semibold text-ghost-blue font-mono">
+                        #{v.id}
+                      </td>
 
-                    <td className="py-4 px-6 text-right font-bold text-emerald-400">
-                      ${v.total.toFixed(2)}
-                    </td>
+                      <td className="py-4 px-6">
+                        <p className="font-medium text-white">{v.product?.name || 'Producto desconocido'}</p>
+                        <p className="text-xs text-gris-calido/60">
+                          ${v.product?.price ? Number(v.product.price).toFixed(2) : '0.00'} c/u
+                        </p>
+                      </td>
 
-                    <td className="py-4 px-6">
-                      <div className="flex items-center gap-2 text-white">
-                        <HiOutlineUser className="text-neo-mint" />
-                        <span>{v.vendedor}</span>
-                      </div>
-                    </td>
+                      <td className="py-4 px-6 text-center">
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-dark-bg text-gris-calido border border-dark-border">
+                          {v.quantity} {unidadTexto}
+                        </span>
+                      </td>
 
-                    <td className="py-4 px-6 text-xs text-gris-calido">
-                      <p>{v.fecha}</p>
-                      <p className="text-gris-calido/50">{v.hora}</p>
-                    </td>
+                      <td className="py-4 px-6 text-right font-bold text-emerald-400">
+                        ${Number(v.total_price || 0).toFixed(2)}
+                      </td>
 
-                    <td className="py-4 px-6 text-right">
-                      <div className="flex items-center justify-end gap-1.5">
-                        
-                        <button 
-                          title="Descargar PDF"
-                          onClick={() => alert(`Generando PDF de ${v.folio}`)}
-                          className="p-1.5 hover:bg-dark-bg rounded-md text-rose-400 hover:text-rose-300 transition-colors"
-                        >
-                          <HiOutlineDocumentText className="text-lg" />
-                        </button>
+                      <td className="py-4 px-6">
+                        <div className="flex items-center gap-2 text-white">
+                          <HiOutlineUser className="text-neo-mint" />
+                          <span>{v.employee ? `${v.employee.first_name} ${v.employee.last_name}` : 'N/A'}</span>
+                        </div>
+                      </td>
 
-                        <button 
-                          title="Ver Ticket"
-                          onClick={() => navigate(`/Ventas/${v.id}`)}
-                          className="p-1.5 hover:bg-dark-bg rounded-md text-ghost-blue hover:text-white transition-colors"
-                        >
-                          <HiOutlineEye className="text-lg" />
-                        </button>
+                      <td className="py-4 px-6 text-xs text-gris-calido">
+                        <p>{fecha}</p>
+                        <p className="text-gris-calido/50">{hora}</p>
+                      </td>
 
-                        <button 
-                          title="Devolución"
-                          onClick={() => alert(`Devolución de ${v.folio}`)}
-                          className="p-1.5 hover:bg-dark-bg rounded-md text-amber-400 hover:text-amber-300 transition-colors"
-                        >
-                          <HiOutlineArrowPath className="text-lg" />
-                        </button>
+                      <td className="py-4 px-6 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          
+                          <button 
+                            title="Descargar PDF"
+                            onClick={() => alert(`Generando PDF del ticket #${v.id}`)}
+                            className="p-1.5 hover:bg-dark-bg rounded-md text-rose-400 hover:text-rose-300 transition-colors"
+                          >
+                            <HiOutlineDocumentText className="text-lg" />
+                          </button>
 
-                        <button 
-                          title="Cancelar Venta"
-                          onClick={() => alert(`Cancelar venta ${v.folio}`)}
-                          className="p-1.5 hover:bg-dark-bg rounded-md text-rose-500 hover:text-rose-400 transition-colors"
-                        >
-                          <HiOutlineNoSymbol className="text-lg" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                          <button 
+                            title="Ver Ticket"
+                            onClick={() => navigate(`/Ventas/${v.id}`)}
+                            className="p-1.5 hover:bg-dark-bg rounded-md text-ghost-blue hover:text-white transition-colors"
+                          >
+                            <HiOutlineEye className="text-lg" />
+                          </button>
+
+                          <button 
+                            title="Devolución"
+                            onClick={() => alert(`Devolución de la venta #${v.id}`)}
+                            className="p-1.5 hover:bg-dark-bg rounded-md text-amber-400 hover:text-amber-300 transition-colors"
+                          >
+                            <HiOutlineArrowPath className="text-lg" />
+                          </button>
+
+                          {!isCancelled && (
+                            <button 
+                              title="Cancelar Venta"
+                              onClick={() => handleCancelVenta(v.id)}
+                              className="p-1.5 hover:bg-dark-bg rounded-md text-rose-500 hover:text-rose-400 transition-colors"
+                            >
+                              <HiOutlineNoSymbol className="text-lg" />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               ) : (
                 <tr>
                   <td colSpan={7} className="py-8 text-center text-gris-calido/50">

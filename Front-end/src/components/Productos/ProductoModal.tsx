@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import { 
   HiXMark, 
   HiOutlineCube, 
@@ -18,40 +19,49 @@ export interface ProductoData {
   category_id: number;
   supplier_id?: number | null;
   barcode?: string;
-
   package_size?: number;
   stock_in_units?: number;
   price_per_unit?: number;
   price_per_package?: number;
   price_per_kg?: number;
-
   allows_unit_sale?: boolean;
   allows_package_sale?: boolean;
   allows_weight_sale?: boolean;
 }
 
-interface OptionItem {
+interface Categoria {
   id: number;
-  nombre: string;
+  name: string;
+}
+
+interface Proveedor {
+  id: number;
+  company_name: string;
 }
 
 interface ProductoModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (data: ProductoData) => void;
+  onSuccess: () => void;
   initialData?: ProductoData | null;
-  categoriasList: OptionItem[];
-  proveedoresList: OptionItem[];
 }
+
+const extraerMensajeError = (error: any) => {
+  const data = error.response?.data;
+  return data?.message ?? data?.error ?? 'Ocurrió un error inesperado';
+};
 
 export default function ProductoModal({
   isOpen,
   onClose,
-  onSave,
+  onSuccess,
   initialData,
-  categoriasList,
-  proveedoresList,
 }: ProductoModalProps) {
+  
+  const [categoriasList, setCategoriasList] = useState<Categoria[]>([]);
+  const [proveedoresList, setProveedoresList] = useState<Proveedor[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
   const [formData, setFormData] = useState<ProductoData>({
     name: '',
     description: '',
@@ -59,8 +69,8 @@ export default function ProductoModal({
     purchase_price: 0,
     stock: 0,
     min_stock: 5,
-    category_id: categoriasList[0]?.id || 1,
-    supplier_id: proveedoresList[0]?.id || null,
+    category_id: 0,
+    supplier_id: null,
     barcode: '',
     package_size: 1,
     stock_in_units: 0,
@@ -73,37 +83,88 @@ export default function ProductoModal({
   });
 
   useEffect(() => {
-    if (initialData) {
-      setFormData(initialData);
-    } else {
-      setFormData({
-        name: '',
-        description: '',
-        price: 0,
-        purchase_price: 0,
-        stock: 0,
-        min_stock: 5,
-        category_id: categoriasList[0]?.id || 1,
-        supplier_id: proveedoresList[0]?.id || null,
-        barcode: '',
-        package_size: 1,
-        stock_in_units: 0,
-        price_per_unit: 0,
-        price_per_package: 0,
-        price_per_kg: 0,
-        allows_unit_sale: true,
-        allows_package_sale: false,
-        allows_weight_sale: false,
-      });
+    if (isOpen) {
+      // 1. Cargar datos iniciales o resetear formulario
+      if (initialData) {
+        setFormData({
+          ...initialData,
+          price: Number(initialData.price),
+          purchase_price: Number(initialData.purchase_price),
+          price_per_unit: Number(initialData.price_per_unit || 0),
+          price_per_package: Number(initialData.price_per_package || 0),
+          price_per_kg: Number(initialData.price_per_kg || 0),
+        });
+      } else {
+        setFormData({
+          name: '', description: '', price: 0, purchase_price: 0, stock: 0, min_stock: 5,
+          category_id: categoriasList[0]?.id || 0, supplier_id: null, barcode: '',
+          package_size: 1, stock_in_units: 0, price_per_unit: 0, price_per_package: 0, price_per_kg: 0,
+          allows_unit_sale: true, allows_package_sale: false, allows_weight_sale: false,
+        });
+      }
+
+      // 2. Fetch de catálogos necesarios para los selectores
+      const fetchCatalogos = async () => {
+        try {
+          const token = localStorage.getItem('token');
+          const [resCat, resProv] = await Promise.all([
+            axios.get('https://api.yahirdev.dev/api/categories', { headers: { Authorization: `Bearer ${token}` } }),
+            axios.get('https://api.yahirdev.dev/api/suppliers', { headers: { Authorization: `Bearer ${token}` } })
+          ]);
+          
+          const cats = resCat.data.data || resCat.data;
+          const provs = resProv.data.data || resProv.data;
+          
+          setCategoriasList(cats);
+          setProveedoresList(provs);
+
+          // Si es un producto nuevo, pre-seleccionar la primera categoría una vez que cargue
+          if (!initialData && cats.length > 0) {
+            setFormData(prev => ({ ...prev, category_id: cats[0].id }));
+          }
+        } catch (error) {
+          console.error('Error cargando catálogos:', extraerMensajeError(error));
+        }
+      };
+      
+      fetchCatalogos();
     }
-  }, [initialData, isOpen, categoriasList, proveedoresList]);
+  }, [isOpen, initialData]);
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onSave(formData);
-    onClose();
+    setIsLoading(true);
+
+    try {
+      const token = localStorage.getItem('token');
+      const payload = { ...formData };
+      
+      // Limpiar supplier_id si está vacío para evitar errores de llave foránea
+      if (!payload.supplier_id) payload.supplier_id = null;
+
+      if (initialData?.id) {
+        // Actualizar producto existente
+        await axios.put(`https://api.yahirdev.dev/api/products/${initialData.id}`, payload, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        alert('Producto actualizado exitosamente.');
+      } else {
+        // Crear nuevo producto
+        await axios.post('https://api.yahirdev.dev/api/products', payload, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        alert('Producto creado exitosamente.');
+      }
+      
+      onSuccess();
+      onClose();
+    } catch (error) {
+      alert(extraerMensajeError(error));
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -123,7 +184,7 @@ export default function ProductoModal({
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-6 max-h-[80vh] overflow-y-auto">
+        <form onSubmit={handleSubmit} className="p-6 space-y-6 max-h-[80vh] overflow-y-auto custom-scrollbar">
           
           <div className="space-y-4">
             <h4 className="text-xs font-bold text-neo-mint uppercase tracking-wider">
@@ -175,9 +236,10 @@ export default function ProductoModal({
                   onChange={(e) => setFormData({ ...formData, category_id: Number(e.target.value) })}
                   className="w-full bg-dark-bg border border-dark-border rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-neo-mint"
                 >
+                  <option value="" disabled className="bg-dark-card text-gris-calido/50">Seleccionar categoría...</option>
                   {categoriasList.map((cat) => (
                     <option key={cat.id} value={cat.id} className="bg-dark-card text-white">
-                      {cat.nombre}
+                      {cat.name}
                     </option>
                   ))}
                 </select>
@@ -185,17 +247,17 @@ export default function ProductoModal({
 
               <div>
                 <label className="block text-xs font-semibold text-gris-calido uppercase tracking-wider mb-2">
-                  Proveedor
+                  Proveedor Predeterminado
                 </label>
                 <select
                   value={formData.supplier_id || ''}
                   onChange={(e) => setFormData({ ...formData, supplier_id: e.target.value ? Number(e.target.value) : null })}
                   className="w-full bg-dark-bg border border-dark-border rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-neo-mint"
                 >
-                  <option value="" className="bg-dark-card text-gris-calido/50">Seleccionar proveedor...</option>
+                  <option value="" className="bg-dark-card text-gris-calido/50">Ninguno / Seleccionar...</option>
                   {proveedoresList.map((prov) => (
                     <option key={prov.id} value={prov.id} className="bg-dark-card text-white">
-                      {prov.nombre}
+                      {prov.company_name}
                     </option>
                   ))}
                 </select>
@@ -288,6 +350,7 @@ export default function ProductoModal({
               Modalidades de Venta y Presentaciones
             </h4>
 
+            {/* Venta por Paquete */}
             <div className="bg-dark-bg/60 border border-dark-border p-4 rounded-xl space-y-3">
               <label className="flex items-center gap-3 cursor-pointer">
                 <input
@@ -335,6 +398,7 @@ export default function ProductoModal({
               )}
             </div>
 
+            {/* Venta por Unidad */}
             <div className="bg-dark-bg/60 border border-dark-border p-4 rounded-xl space-y-3">
               <label className="flex items-center gap-3 cursor-pointer">
                 <input
@@ -381,6 +445,7 @@ export default function ProductoModal({
               )}
             </div>
 
+            {/* Venta a Granel */}
             <div className="bg-dark-bg/60 border border-dark-border p-4 rounded-xl space-y-3">
               <label className="flex items-center gap-3 cursor-pointer">
                 <input
@@ -425,9 +490,10 @@ export default function ProductoModal({
             </button>
             <button
               type="submit"
-              className="px-4 py-2 rounded-lg text-sm font-semibold bg-neo-mint text-dark-bg hover:bg-neo-mint/90 transition-all shadow-md shadow-neo-mint/10"
+              disabled={isLoading || !formData.name || !formData.category_id}
+              className="px-4 py-2 rounded-lg text-sm font-semibold bg-neo-mint text-dark-bg hover:bg-neo-mint/90 transition-all shadow-md shadow-neo-mint/10 disabled:opacity-50"
             >
-              {initialData ? 'Guardar Cambios' : 'Crear Producto'}
+              {isLoading ? 'Procesando...' : initialData ? 'Guardar Cambios' : 'Crear Producto'}
             </button>
           </div>
 
