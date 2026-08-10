@@ -143,7 +143,7 @@ export default function EmpleadoModal({
                         required
                         value={formData.last_name}
                         onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
-                        placeholder="Ej. Melano"
+                        placeholder="Ej. Martinez"
                         className="w-full bg-dark-bg border border-dark-border rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-neo-mint"
                       />
                     </div>

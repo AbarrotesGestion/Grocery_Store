@@ -250,7 +250,7 @@ export default function NotasProveedorScreen() {
                             whileTap={{ scale: 0.9 }}
                             type="button"
                             title="Ver Detalle y Escaneo"
-                            onClick={() => navigate(`/Notas-Proveedores/${nota.id}`)}
+                            onClick={() => navigate(`/notas-proveedor/${nota.id}`)}
                             className="p-1.5 hover:bg-dark-bg rounded-md text-ghost-blue hover:text-white transition-colors"
                           >
                             <HiOutlineEye className="text-lg" />

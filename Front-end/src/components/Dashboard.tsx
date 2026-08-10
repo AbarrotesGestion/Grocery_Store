@@ -151,16 +151,6 @@ export default function Dashboard() {
           <h1 className="text-3xl font-extrabold text-white tracking-wide">Vista General</h1>
           <p className="text-sm text-gris-calido/70">Métricas clave y rendimiento de operaciones en tiempo real.</p>
         </div>
-
-        <motion.button 
-          whileHover={{ scale: 1.05, boxShadow: "0px 0px 20px rgba(0, 255, 170, 0.3)" }}
-          whileTap={{ scale: 0.95 }}
-          onClick={() => alert('Redirigiendo al POS...')}
-          className="relative z-10 flex items-center justify-center gap-2 bg-neo-mint text-dark-bg font-bold px-5 py-3 rounded-xl transition-all shadow-lg"
-        >
-          <HiPlus className="text-xl font-black" />
-          Nueva Venta
-        </motion.button>
       </motion.div>
 
       {/* TARJETAS KPI ULTRA DINÁMICAS */}

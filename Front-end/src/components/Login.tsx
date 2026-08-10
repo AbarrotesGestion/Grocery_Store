@@ -13,28 +13,38 @@ export default function Login() {
     e.preventDefault();
     setErrorMsg('');
     setIsLoading(true);
-    
+
     try {
-      // Hacemos la petición real a tu backend de Laravel
       const response = await axios.post('https://api.yahirdev.dev/api/login', {
-        email: usuario, // Asumiendo que tu backend espera el campo 'email'
-        password: password
+        email: usuario,
+        password: password,
       });
 
-      // Extraemos el token de la respuesta
-      const token = response.data.token || response.data.access_token || response.data.data?.token;
-      
+      const token =
+        response.data.token ||
+        response.data.access_token ||
+        response.data.data?.token;
+
+      const user = response.data.user || response.data.data?.user;
+
       if (token) {
-        // Guardamos la llave de acceso en el navegador
         localStorage.setItem('token', token);
-        // Redirigimos al dashboard
+
+        if (user) {
+          localStorage.setItem('user', JSON.stringify(user));
+        }
+
         navigate('/dashboard');
       } else {
         setErrorMsg('El servidor respondió, pero no envió un token válido.');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error al iniciar sesión:', error);
-      setErrorMsg('Credenciales incorrectas o error de conexión.');
+      const mensaje =
+        error.response?.data?.message ||
+        error.response?.data?.error ||
+        'Credenciales incorrectas o error de conexión.';
+      setErrorMsg(mensaje);
     } finally {
       setIsLoading(false);
     }
@@ -55,7 +65,7 @@ export default function Login() {
 
           <div>
             <label className="block text-gris-calido text-xs font-semibold uppercase tracking-wider mb-2">
-              Usuario
+              Usuario / Correo
             </label>
             <input
               type="email"
@@ -81,7 +91,6 @@ export default function Login() {
             />
           </div>
 
-          {/* Mensaje de error visual en caso de fallar */}
           {errorMsg && (
             <div className="text-rose-500 text-sm text-center font-medium bg-rose-500/10 py-2 rounded-lg border border-rose-500/20">
               {errorMsg}

@@ -142,7 +142,7 @@ export default function NotaTratoDetalleScreen() {
     >
       <div className="flex items-center justify-between">
         <Link 
-          to="/Notas-Proveedores" 
+          to="/notas-proveedor" 
           className="inline-flex items-center gap-2 text-sm text-gris-calido/70 hover:text-neo-mint transition-colors"
         >
           <HiOutlineArrowLeft className="text-base" />

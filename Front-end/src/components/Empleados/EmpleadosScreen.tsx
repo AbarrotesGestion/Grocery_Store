@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import axios from 'axios';
 import { 
   HiPlus, 
@@ -11,7 +11,11 @@ import {
   HiOutlineMagnifyingGlass,
   HiOutlineSparkles,
   HiOutlineEnvelope,
-  HiOutlinePhone
+  HiOutlinePhone,
+  HiOutlineCheckCircle,
+  HiOutlineExclamationTriangle,
+  HiOutlineClipboardDocument,
+  HiOutlineXMark
 } from 'react-icons/hi2';
 import EmpleadoModal from './EmpleadoModal';
 import { type Empleado } from './EmpleadoDetalle';
@@ -20,6 +24,15 @@ const extraerMensajeError = (error: any) => {
   const data = error.response?.data;
   return data?.message ?? data?.error ?? 'Ocurrió un error inesperado';
 };
+
+interface CustomNotification {
+  isOpen: boolean;
+  type: 'success' | 'error' | 'confirm';
+  title: string;
+  message: string;
+  tempPassword?: string;
+  onConfirm?: () => void;
+}
 
 export default function EmpleadosScreen() {
   const navigate = useNavigate();
@@ -31,6 +44,15 @@ export default function EmpleadosScreen() {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedEmpleado, setSelectedEmpleado] = useState<Empleado | null>(null);
+
+  const [notification, setNotification] = useState<CustomNotification>({
+    isOpen: false,
+    type: 'success',
+    title: '',
+    message: '',
+  });
+
+  const [copied, setCopied] = useState(false);
 
   const token = localStorage.getItem('token');
   const headers = { Authorization: `Bearer ${token}` };
@@ -62,36 +84,84 @@ export default function EmpleadosScreen() {
     setIsModalOpen(true);
   };
 
+  const closeNotification = () => {
+    setNotification(prev => ({ ...prev, isOpen: false }));
+    setCopied(false);
+  };
+
   const handleSaveEmpleado = async (formData: Empleado) => {
     try {
       if (selectedEmpleado?.id) {
         await axios.put(`https://api.yahirdev.dev/api/employees/${selectedEmpleado.id}`, formData, { headers });
-        alert('Empleado actualizado exitosamente.');
+        setNotification({
+          isOpen: true,
+          type: 'success',
+          title: 'Empleado Actualizado',
+          message: 'Los datos del empleado se guardaron exitosamente.',
+        });
       } else {
         const res = await axios.post('https://api.yahirdev.dev/api/employees', formData, { headers });
         if (res.data.temporary_password) {
-          alert(`Empleado creado exitosamente.\nContraseña temporal asignada: ${res.data.temporary_password}`);
+          setNotification({
+            isOpen: true,
+            type: 'success',
+            title: 'Empleado Creado Exitosamente',
+            message: 'Se ha registrado el perfil en el sistema. Asegúrate de compartir la contraseña temporal asignada.',
+            tempPassword: res.data.temporary_password,
+          });
         } else {
-          alert('Empleado creado exitosamente.');
+          setNotification({
+            isOpen: true,
+            type: 'success',
+            title: 'Empleado Creado Exitosamente',
+            message: 'El nuevo empleado ha sido registrado correctamente.',
+          });
         }
       }
       setIsModalOpen(false);
       setRefreshTrigger(prev => prev + 1);
     } catch (error) {
-      alert(extraerMensajeError(error));
+      setNotification({
+        isOpen: true,
+        type: 'error',
+        title: 'Error de Operación',
+        message: extraerMensajeError(error),
+      });
     }
   };
 
-  const handleDeleteEmpleado = async (id: number) => {
-    if (window.confirm('¿Estás seguro de eliminar este empleado?')) {
-      try {
-        await axios.delete(`https://api.yahirdev.dev/api/employees/${id}`, { headers });
-        setRefreshTrigger(prev => prev + 1);
-        alert('Empleado eliminado exitosamente.');
-      } catch (error) {
-        alert(extraerMensajeError(error));
+  const handleDeleteEmpleado = (id: number) => {
+    setNotification({
+      isOpen: true,
+      type: 'confirm',
+      title: '¿Eliminar Empleado?',
+      message: 'Esta acción dará de baja al empleado de la plantilla activa. ¿Deseas continuar?',
+      onConfirm: async () => {
+        try {
+          await axios.delete(`https://api.yahirdev.dev/api/employees/${id}`, { headers });
+          setRefreshTrigger(prev => prev + 1);
+          setNotification({
+            isOpen: true,
+            type: 'success',
+            title: 'Empleado Eliminado',
+            message: 'El registro del empleado ha sido removido del sistema.',
+          });
+        } catch (error) {
+          setNotification({
+            isOpen: true,
+            type: 'error',
+            title: 'Error al Eliminar',
+            message: extraerMensajeError(error),
+          });
+        }
       }
-    }
+    });
+  };
+
+  const handleCopyPassword = (pwd: string) => {
+    navigator.clipboard.writeText(pwd);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   const empleadosFiltrados = empleados.filter(e =>
@@ -105,9 +175,8 @@ export default function EmpleadosScreen() {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, ease: "easeOut" }}
-      className="p-6 bg-dark-bg text-gris-calido min-h-screen space-y-6"
+      className="p-6 bg-dark-bg text-gris-calido min-h-screen space-y-6 relative"
     >
-      {/* HEADER DE LA VISTA */}
       <motion.div 
         initial={{ opacity: 0, x: -20 }}
         animate={{ opacity: 1, x: 0 }}
@@ -136,7 +205,6 @@ export default function EmpleadosScreen() {
         </motion.button>
       </motion.div>
 
-      {/* BARRA DE BÚSQUEDA */}
       <div className="bg-dark-card border border-dark-border p-4 rounded-xl flex items-center gap-3 shadow-sm">
         <HiOutlineMagnifyingGlass className="text-xl text-gris-calido/60" />
         <input 
@@ -148,7 +216,6 @@ export default function EmpleadosScreen() {
         />
       </div>
 
-      {/* TABLA DE EMPLEADOS ANIMADA */}
       <motion.div 
         initial={{ opacity: 0, y: 15 }}
         animate={{ opacity: 1, y: 0 }}
@@ -270,6 +337,97 @@ export default function EmpleadosScreen() {
         onSave={handleSaveEmpleado}
         initialData={selectedEmpleado}
       />
+
+      <AnimatePresence>
+        {notification.isOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              transition={{ duration: 0.2, ease: 'easeOut' }}
+              className="bg-dark-card border border-dark-border w-full max-w-md rounded-2xl shadow-2xl overflow-hidden p-6 relative"
+            >
+              <button 
+                type="button"
+                onClick={closeNotification}
+                className="absolute top-4 right-4 text-gris-calido/60 hover:text-white p-1 rounded-lg transition-colors"
+              >
+                <HiOutlineXMark className="text-xl" />
+              </button>
+
+              <div className="flex flex-col items-center text-center space-y-4">
+                <div className={`p-4 rounded-2xl border ${
+                  notification.type === 'success' 
+                    ? 'bg-neo-mint/10 border-neo-mint/30 text-neo-mint' 
+                    : notification.type === 'error'
+                    ? 'bg-rose-500/10 border-rose-500/30 text-rose-400'
+                    : 'bg-amber-500/10 border-amber-500/30 text-amber-400'
+                }`}>
+                  {notification.type === 'success' && <HiOutlineCheckCircle className="text-4xl" />}
+                  {notification.type === 'error' && <HiOutlineExclamationTriangle className="text-4xl" />}
+                  {notification.type === 'confirm' && <HiOutlineExclamationTriangle className="text-4xl" />}
+                </div>
+
+                <div className="space-y-1">
+                  <h3 className="text-xl font-bold text-white tracking-wide">{notification.title}</h3>
+                  <p className="text-sm text-gris-calido/80">{notification.message}</p>
+                </div>
+
+                {notification.tempPassword && (
+                  <div className="w-full bg-dark-bg border border-neo-mint/30 rounded-xl p-3.5 space-y-1 text-left relative">
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-neo-mint">Contraseña Temporal Asignada</p>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-mono text-base font-bold text-white tracking-wider">{notification.tempPassword}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleCopyPassword(notification.tempPassword!)}
+                        className="flex items-center gap-1 text-xs bg-neo-mint/20 text-neo-mint hover:bg-neo-mint/30 px-2.5 py-1.5 rounded-lg font-semibold transition-all shrink-0"
+                      >
+                        <HiOutlineClipboardDocument className="text-sm" />
+                        {copied ? '¡Copiado!' : 'Copiar'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-center gap-3 w-full pt-2">
+                  {notification.type === 'confirm' ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={closeNotification}
+                        className="w-full py-2.5 px-4 rounded-xl text-sm font-semibold text-gris-calido hover:bg-dark-bg transition-colors border border-dark-border"
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const action = notification.onConfirm;
+                          closeNotification();
+                          if (action) action();
+                        }}
+                        className="w-full py-2.5 px-4 rounded-xl text-sm font-semibold bg-rose-500 text-white hover:bg-rose-600 transition-colors shadow-lg shadow-rose-500/20"
+                      >
+                        Sí, Eliminar
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={closeNotification}
+                      className="w-full py-2.5 px-4 rounded-xl text-sm font-bold bg-neo-mint text-dark-bg hover:bg-neo-mint/90 transition-all shadow-lg shadow-neo-mint/10"
+                    >
+                      Aceptar
+                    </button>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }
