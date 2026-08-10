@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import axios from 'axios';
+import toast from 'react-hot-toast'; // Importamos toast
 import { HiXMark, HiOutlineDocumentText, HiOutlineCamera, HiPlus, HiTrash } from 'react-icons/hi2';
 
 interface ProveedorItem {
@@ -114,10 +115,9 @@ export default function CrearNotaModal({ isOpen, onClose, onSuccess }: CrearNota
     formData.append('image', file);
 
     setIsScanning(true);
+    const loadingToast = toast.loading('Analizando ticket con Inteligencia Artificial...');
+
     try {
-      // Nota: asumimos que la nota activa temporalmente usa ID 1 o se requiere un ID de nota existente para el endpoint /scan. 
-      // Si tu backend requiere un ID de nota existente para escanear, asegúrate de crear la nota primero o usar el endpoint correspondiente.
-      // Aquí simulamos la extracción del array devuelto por el scan en el controlador:
       const response = await axios.post('https://api.yahirdev.dev/api/supplier-notes/1/scan', formData, {
         headers: { ...headers, 'Content-Type': 'multipart/form-data' }
       });
@@ -135,10 +135,10 @@ export default function CrearNotaModal({ isOpen, onClose, onSuccess }: CrearNota
           };
         });
         setProductsLines(mappedLines);
-        alert('¡Ticket escaneado y productos extraídos con IA exitosamente!');
+        toast.success('¡Ticket escaneado y productos extraídos con IA exitosamente!', { id: loadingToast });
       }
     } catch (error) {
-      alert('Error al escanear ticket con IA: ' + extraerMensajeError(error));
+      toast.error('Error al escanear ticket con IA: ' + extraerMensajeError(error), { id: loadingToast });
     } finally {
       setIsScanning(false);
     }
@@ -147,6 +147,8 @@ export default function CrearNotaModal({ isOpen, onClose, onSuccess }: CrearNota
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    
+    const loadingToast = toast.loading('Guardando nota de proveedor...');
 
     try {
       const payload = {
@@ -164,11 +166,11 @@ export default function CrearNotaModal({ isOpen, onClose, onSuccess }: CrearNota
       };
 
       await axios.post('https://api.yahirdev.dev/api/supplier-notes', payload, { headers });
-      alert('Nota de proveedor creada y almacenista notificado exitosamente.');
+      toast.success('Nota de proveedor creada y almacenista notificado exitosamente.', { id: loadingToast });
       onSuccess();
       onClose();
     } catch (error) {
-      alert(extraerMensajeError(error));
+      toast.error(extraerMensajeError(error), { id: loadingToast });
     } finally {
       setIsLoading(false);
     }

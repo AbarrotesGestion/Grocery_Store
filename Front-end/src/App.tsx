@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { AnimatePresence, motion } from 'motion/react';
+import { Toaster } from 'react-hot-toast'; // Importación de Toaster
 import Landing from './views/Landing';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
@@ -251,6 +252,32 @@ function AnimatedRoutes() {
 function App() {
   return (
     <BrowserRouter>
+      {/* Contenedor global de Notificaciones Toast */}
+      <Toaster 
+        position="top-right"
+        toastOptions={{
+          style: {
+            background: '#1e293b', 
+            color: '#f3f4f6',      
+            border: '1px solid #334155', 
+            boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.5)',
+            fontSize: '14px',
+            fontWeight: '500',
+          },
+          success: {
+            iconTheme: {
+              primary: '#10B981', 
+              secondary: '#1e293b',
+            },
+          },
+          error: {
+            iconTheme: {
+              primary: '#EF4444', 
+              secondary: '#1e293b',
+            },
+          },
+        }}
+      />
       <AnimatedRoutes />
     </BrowserRouter>
   );

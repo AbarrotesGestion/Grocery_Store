@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import axios from 'axios';
+import toast from 'react-hot-toast'; // Importamos toast
 import { HiXMark, HiOutlineShieldCheck } from 'react-icons/hi2';
 import { type Rol } from './RolesScreen';
 
@@ -50,22 +51,24 @@ export default function RolModal({
     e.preventDefault();
     setIsLoading(true);
 
+    const loadingToast = toast.loading(initialData ? 'Actualizando rol...' : 'Guardando rol...');
+
     try {
       const token = localStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
 
       if (initialData?.id) {
         await axios.put(`https://api.yahirdev.dev/api/roles/${initialData.id}`, formData, { headers });
-        alert('Rol actualizado exitosamente.');
+        toast.success('Rol actualizado exitosamente.', { id: loadingToast });
       } else {
         await axios.post('https://api.yahirdev.dev/api/roles', formData, { headers });
-        alert('Rol creado exitosamente.');
+        toast.success('Rol creado exitosamente.', { id: loadingToast });
       }
 
       onSuccess();
       onClose();
     } catch (error) {
-      alert(extraerMensajeError(error));
+      toast.error(extraerMensajeError(error), { id: loadingToast });
     } finally {
       setIsLoading(false);
     }

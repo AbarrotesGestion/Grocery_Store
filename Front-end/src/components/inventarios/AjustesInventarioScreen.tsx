@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import axios from 'axios';
+import toast from 'react-hot-toast'; // Importamos toast
 import { 
   HiPlus, 
   HiOutlineClipboardDocumentList, 
@@ -53,6 +54,7 @@ export default function AjustesInventarioScreen() {
         setAjustes(Array.isArray(data) ? data : []);
       } catch (error) {
         console.error('Error al cargar ajustes de inventario:', extraerMensajeError(error));
+        toast.error("Error al cargar los ajustes de inventario");
       } finally {
         setIsLoading(false);
       }
@@ -71,19 +73,49 @@ export default function AjustesInventarioScreen() {
     setIsModalOpen(true);
   };
 
-  const handleDeleteAjuste = async (id: number) => {
-    if (window.confirm('¿Estás seguro de eliminar este ajuste? Esto revertirá el impacto en el stock del producto.')) {
-      try {
-        const token = localStorage.getItem('token');
-        await axios.delete(`https://api.yahirdev.dev/api/inventory-adjustments/${id}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        setRefreshTrigger(prev => prev + 1);
-        alert('Ajuste eliminado y stock revertido correctamente.');
-      } catch (error) {
-        alert(extraerMensajeError(error));
-      }
+  // Función que ejecuta la eliminación real
+  const confirmDelete = async (id: number) => {
+    const loadingToast = toast.loading("Eliminando ajuste...");
+    try {
+      const token = localStorage.getItem('token');
+      await axios.delete(`https://api.yahirdev.dev/api/inventory-adjustments/${id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setRefreshTrigger(prev => prev + 1);
+      toast.success('Ajuste eliminado y stock revertido correctamente.', { id: loadingToast });
+    } catch (error) {
+      toast.error(extraerMensajeError(error), { id: loadingToast });
     }
+  };
+
+  // Función que muestra el Toast personalizado para confirmar (reemplaza al window.confirm)
+  const handleDeleteAjuste = (id: number) => {
+    toast((t) => (
+      <div className="flex flex-col gap-3 w-full">
+        <p className="text-sm font-semibold text-white">¿Estás seguro de eliminar este ajuste?</p>
+        <p className="text-xs text-gris-calido">Esto revertirá el impacto en el stock del producto.</p>
+        <div className="flex gap-2 justify-end mt-2">
+          <button 
+            onClick={() => toast.dismiss(t.id)} 
+            className="px-3 py-1.5 text-xs font-semibold bg-dark-bg text-gris-calido rounded-lg hover:text-white border border-dark-border transition"
+          >
+            Cancelar
+          </button>
+          <button 
+            onClick={() => {
+              toast.dismiss(t.id);
+              confirmDelete(id);
+            }} 
+            className="px-3 py-1.5 text-xs font-semibold bg-rose-500/20 text-rose-400 border border-rose-500/50 rounded-lg hover:bg-rose-500 hover:text-white transition"
+          >
+            Sí, eliminar
+          </button>
+        </div>
+      </div>
+    ), { 
+      duration: 5000, 
+      style: { minWidth: '300px' } 
+    });
   };
 
   const totalAdiciones = ajustes.filter(a => a.adjustment_type === 'addition').reduce((acc, curr) => acc + Number(curr.quantity), 0);

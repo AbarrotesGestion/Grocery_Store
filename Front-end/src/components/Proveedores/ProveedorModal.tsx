@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import axios from 'axios';
+import toast from 'react-hot-toast'; // Importamos toast
 import { HiXMark, HiOutlineTruck } from 'react-icons/hi2';
 
 export interface ProveedorData {
@@ -64,6 +65,8 @@ export default function ProveedorModal({
     e.preventDefault();
     setIsLoading(true);
 
+    const loadingToast = toast.loading(initialData ? 'Actualizando proveedor...' : 'Guardando proveedor...');
+
     try {
       const token = localStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
@@ -74,16 +77,16 @@ export default function ProveedorModal({
 
       if (initialData?.id) {
         await axios.put(`https://api.yahirdev.dev/api/suppliers/${initialData.id}`, payload, { headers });
-        alert('Proveedor actualizado exitosamente.');
+        toast.success('Proveedor actualizado exitosamente.', { id: loadingToast });
       } else {
         await axios.post('https://api.yahirdev.dev/api/suppliers', payload, { headers });
-        alert('Proveedor creado exitosamente.');
+        toast.success('Proveedor creado exitosamente.', { id: loadingToast });
       }
 
       onSuccess();
       onClose();
     } catch (error) {
-      alert(extraerMensajeError(error));
+      toast.error(extraerMensajeError(error), { id: loadingToast });
     } finally {
       setIsLoading(false);
     }

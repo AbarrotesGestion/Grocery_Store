@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import axios from 'axios';
+import toast from 'react-hot-toast'; // Importamos toast
 import { HiXMark, HiOutlineClipboardDocumentList } from 'react-icons/hi2';
 import { type AjusteInventario } from './AjustesInventarioScreen';
 
@@ -83,22 +84,25 @@ export default function AjusteInventarioModal({
     e.preventDefault();
     setIsLoading(true);
 
+    // Creamos un toast de carga que luego actualizaremos a éxito o error
+    const loadingToast = toast.loading(initialData ? 'Actualizando ajuste...' : 'Guardando ajuste...');
+
     try {
       const token = localStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
 
       if (initialData?.id) {
         await axios.put(`https://api.yahirdev.dev/api/inventory-adjustments/${initialData.id}`, formData, { headers });
-        alert('Ajuste de inventario actualizado exitosamente.');
+        toast.success('Ajuste de inventario actualizado exitosamente.', { id: loadingToast });
       } else {
         await axios.post('https://api.yahirdev.dev/api/inventory-adjustments', formData, { headers });
-        alert('Ajuste registrado y stock actualizado exitosamente.');
+        toast.success('Ajuste registrado y stock actualizado exitosamente.', { id: loadingToast });
       }
 
       onSuccess();
       onClose();
     } catch (error) {
-      alert(extraerMensajeError(error));
+      toast.error(extraerMensajeError(error), { id: loadingToast });
     } finally {
       setIsLoading(false);
     }
