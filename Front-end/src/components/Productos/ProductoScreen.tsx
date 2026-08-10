@@ -282,7 +282,7 @@ export default function ProductosScreen() {
       <ProductoModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        initialData={selectedProduct}
+        initialData={selectedProduct as any}
         onSuccess={() => {
           setIsModalOpen(false);
           setRefreshTrigger(prev => prev + 1);

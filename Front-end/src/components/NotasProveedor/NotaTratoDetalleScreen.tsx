@@ -8,8 +8,7 @@ import {
   HiOutlineBuildingStorefront, 
   HiOutlineCheckBadge, 
   HiOutlineCurrencyDollar,
-  HiOutlineInformationCircle,
-  HiOutlineSparkles
+  HiOutlineInformationCircle
 } from 'react-icons/hi2';
 
 interface NoteDetail {

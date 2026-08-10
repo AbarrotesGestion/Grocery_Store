@@ -4,7 +4,6 @@ import { motion } from 'motion/react';
 import axios from 'axios';
 import { 
   HiPlus, 
-  HiOutlineDocumentText, 
   HiOutlineEye, 
   HiOutlineTrash, 
   HiOutlineMagnifyingGlass,
@@ -18,6 +17,7 @@ import CrearNotaModal from './CrearNotaModal';
 
 export interface SupplierNote {
   id: number;
+  supplier_id?: number;
   total_amount: number;
   delivery_date: string;
   status: 'pending' | 'confirmed' | 'paid';
