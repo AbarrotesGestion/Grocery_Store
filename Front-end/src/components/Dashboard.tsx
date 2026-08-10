@@ -17,11 +17,11 @@ import {
   HiOutlineTicket, 
   HiOutlineExclamationTriangle, 
   HiOutlineCurrencyDollar, 
-  HiPlus, 
   HiOutlineArrowTrendingUp, 
   HiOutlineChartPie,
   HiOutlineSparkles
 } from 'react-icons/hi2';
+import { exportToExcel, exportToPDF } from '../utils/exportUtils';
 
 interface UltimaVenta {
   sale_group_id: string;
@@ -127,6 +127,14 @@ export default function Dashboard() {
     value: data.conteoProductos[index] || 0,
   })) : [];
 
+  const datosParaExcel = data?.ultimasVentas ? data.ultimasVentas.map((venta) => ({
+    Folio: venta.sale_group_id,
+    Cliente: venta.cliente,
+    Total: venta.total,
+    Vendedor: venta.empleado,
+    Fecha: venta.fecha,
+  })) : [];
+
   return (
     <motion.div 
       initial={{ opacity: 0, y: 20 }}
@@ -150,6 +158,22 @@ export default function Dashboard() {
           </div>
           <h1 className="text-3xl font-extrabold text-white tracking-wide">Vista General</h1>
           <p className="text-sm text-gris-calido/70">Métricas clave y rendimiento de operaciones en tiempo real.</p>
+        </div>
+
+        {/* BOTONES DE EXPORTACIÓN */}
+        <div className="flex gap-3 relative z-10">
+          <button 
+            onClick={() => exportToExcel(datosParaExcel, 'Reporte_Ultimas_Ventas')}
+            className="bg-green-600 text-white px-4 py-2 rounded-xl font-bold hover:bg-green-700 transition text-sm shadow-lg flex items-center gap-2"
+          >
+            Exportar a Excel
+          </button>
+          <button 
+            onClick={() => exportToPDF('Reporte General - Vista General', data || {}, 'Reporte_Dashboard')}
+            className="bg-red-600 text-white px-4 py-2 rounded-xl font-bold hover:bg-red-700 transition text-sm shadow-lg flex items-center gap-2"
+          >
+            Exportar a PDF
+          </button>
         </div>
       </motion.div>
 
