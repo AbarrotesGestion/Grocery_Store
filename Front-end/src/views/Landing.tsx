@@ -76,7 +76,7 @@ export default function Landing() {
 
         <div className="relative z-10 text-center px-4 max-w-3xl">
           <h1 className="text-7xl md:text-8xl font-extrabold tracking-tight mb-4 text-white">
-            Grocery <span className="text-neo-mint drop-shadow-[0_0_15px_rgba(139,242,230,0.3)]">Store</span>
+            Abarrotes <span className="text-neo-mint drop-shadow-[0_0_15px_rgba(139,242,230,0.3)]">Katy</span>
           </h1>
           <TextoEscribiendo texto="Gestión de inventario y ventas." />
           
