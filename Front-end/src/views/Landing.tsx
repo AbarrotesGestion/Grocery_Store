@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { IoBarChart, IoAlbumsSharp, IoPeopleSharp } from "react-icons/io5";
 import { MdOutlineAttachMoney, MdOutlinePointOfSale } from "react-icons/md";
@@ -9,17 +9,27 @@ function TextoEscribiendo({ texto }: { texto: string }) {
 
   useEffect(() => {
     let i = 0;
-    setTextofinal('');
+    let currentStr = ''; // Usamos una variable local para construir el texto
+
+    // Evitamos el error de React esperando un micro-instante para limpiar el estado
+    const initialTimeout = setTimeout(() => {
+      setTextofinal('');
+    }, 0);
+
     const intervalo = setInterval(() => {
       if (i < texto.length) {
-        setTextofinal((prev) => prev + texto.charAt(i));
+        currentStr += texto.charAt(i);
+        setTextofinal(currentStr);
         i++;
       } else {
         clearInterval(intervalo);
       }
     }, 80);
 
-    return () => clearInterval(intervalo);
+    return () => {
+      clearTimeout(initialTimeout);
+      clearInterval(intervalo);
+    };
   }, [texto]);
 
   return (
@@ -68,7 +78,7 @@ export default function Landing() {
           <h1 className="text-7xl md:text-8xl font-extrabold tracking-tight mb-4 text-white">
             Grocery <span className="text-neo-mint drop-shadow-[0_0_15px_rgba(139,242,230,0.3)]">Store</span>
           </h1>
-          <TextoEscribiendo texto="GGestión de inventario y ventas." />
+          <TextoEscribiendo texto="Gestión de inventario y ventas." />
           
           <button
             onClick={() => navigate('/login')}
