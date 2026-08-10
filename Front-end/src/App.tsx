@@ -18,7 +18,7 @@ import DeudaClienteDetalle from './components/Deuda_Clientes/DeudaClienteDetalle
 import EmpleadosScreen from './components/Empleados/EmpleadosScreen';
 import EmpleadoDetalle from './components/Empleados/EmpleadoDetalle';
 
-// Nuevos módulos integrados y optimizados
+// Módulos integrados con las rutas corregidas (respetando mayúsculas y minúsculas exactas)
 import AjustesInventarioScreen from './components/inventarios/AjustesInventarioScreen';
 import CashRegistersScreen from './components/Caja/CashRegistersScreen';
 import RolesScreen from './components/Roles/RolesScreen';
