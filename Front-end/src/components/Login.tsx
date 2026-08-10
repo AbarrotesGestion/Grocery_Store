@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
@@ -9,7 +9,7 @@ export default function Login() {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleLogin = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setErrorMsg('');
     setIsLoading(true);
@@ -21,7 +21,7 @@ export default function Login() {
         password: password
       });
 
-      // Extraemos el token de la respuesta (ajusta 'token' si tu backend usa 'access_token')
+      // Extraemos el token de la respuesta
       const token = response.data.token || response.data.access_token || response.data.data?.token;
       
       if (token) {
