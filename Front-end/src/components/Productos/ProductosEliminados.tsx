@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { motion } from 'motion/react';
 import axios from 'axios';
 import { 
   HiOutlineArrowLeft, 
@@ -9,7 +10,6 @@ import {
   HiOutlineArchiveBoxXMark
 } from 'react-icons/hi2';
 
-// 1. Interfaz alineada a la respuesta del backend
 export interface ProductoEliminado {
   id: number;
   name: string;
@@ -30,7 +30,6 @@ export default function ProductosEliminados() {
   const [isLoading, setIsLoading] = useState(true);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
-  // 2. Cargar productos en la papelera
   useEffect(() => {
     const fetchTrashedProducts = async () => {
       setIsLoading(true);
@@ -40,7 +39,6 @@ export default function ProductosEliminados() {
           headers: { Authorization: `Bearer ${token}` }
         });
         
-        // Asumiendo que el backend devuelve un array directo o envuelto en { data: [...] }
         const data = response.data.data || response.data;
         setTrashedProducts(Array.isArray(data) ? data : []);
       } catch (error) {
@@ -52,7 +50,6 @@ export default function ProductosEliminados() {
     fetchTrashedProducts();
   }, [refreshTrigger]);
 
-  // 3. Restaurar producto
   const handleRestore = async (id: number) => {
     if (window.confirm('¿Deseas restaurar este producto al catálogo activo?')) {
       try {
@@ -68,7 +65,6 @@ export default function ProductosEliminados() {
     }
   };
 
-  // 4. Eliminar permanentemente
   const handleForceDelete = async (id: number) => {
     if (window.confirm('¡Atención! Esta acción eliminará permanentemente el producto de la base de datos y no se podrá recuperar. ¿Continuar?')) {
       try {
@@ -85,8 +81,12 @@ export default function ProductosEliminados() {
   };
 
   return (
-    <div className="p-6 bg-dark-bg text-gris-calido min-h-screen space-y-6">
-      
+    <motion.div 
+      initial={{ opacity: 0, y: 15 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+      className="p-6 bg-dark-bg text-gris-calido min-h-screen space-y-6"
+    >
       <div>
         <Link 
           to="/Inventario" 
@@ -124,12 +124,17 @@ export default function ProductosEliminados() {
                   <td colSpan={4} className="py-8 text-center text-neo-mint">Cargando papelera...</td>
                 </tr>
               ) : trashedProducts.length > 0 ? (
-                trashedProducts.map((prod) => {
-                  // Limpieza básica de la fecha (si viene con formato ISO)
+                trashedProducts.map((prod, index) => {
                   const fechaLimpia = prod.deleted_at ? prod.deleted_at.split('T')[0] : 'Desconocida';
 
                   return (
-                    <tr key={prod.id} className="hover:bg-dark-bg/40 transition-colors">
+                    <motion.tr 
+                      key={prod.id} 
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ duration: 0.2, delay: index * 0.05 }}
+                      className="hover:bg-dark-bg/40 transition-colors"
+                    >
                       <td className="py-4 px-6 font-medium text-white">{prod.name}</td>
                       <td className="py-4 px-6">
                         <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-dark-bg text-gris-calido border border-dark-border">
@@ -139,7 +144,9 @@ export default function ProductosEliminados() {
                       <td className="py-4 px-6 text-xs text-rose-400/80 font-medium">{fechaLimpia}</td>
                       <td className="py-4 px-6 text-right">
                         <div className="flex items-center justify-end gap-2">
-                          <button 
+                          <motion.button 
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
                             type="button"
                             title="Restaurar Producto"
                             onClick={() => handleRestore(prod.id)}
@@ -147,19 +154,21 @@ export default function ProductosEliminados() {
                           >
                             <HiOutlineArrowPath className="text-sm" />
                             Restaurar
-                          </button>
+                          </motion.button>
 
-                          <button 
+                          <motion.button 
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
                             type="button"
                             title="Eliminar Definitivamente"
                             onClick={() => handleForceDelete(prod.id)}
                             className="p-1.5 hover:bg-dark-bg rounded-md text-rose-500 hover:text-rose-400 transition-colors"
                           >
                             <HiOutlineXMark className="text-lg" />
-                          </button>
+                          </motion.button>
                         </div>
                       </td>
-                    </tr>
+                    </motion.tr>
                   );
                 })
               ) : (
@@ -178,6 +187,6 @@ export default function ProductosEliminados() {
           </table>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }

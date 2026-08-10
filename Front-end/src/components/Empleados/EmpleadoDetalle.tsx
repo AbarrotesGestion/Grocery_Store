@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { motion } from 'motion/react';
 import axios from 'axios';
 import { 
   HiOutlineArrowLeft, 
@@ -13,7 +14,6 @@ import {
 } from 'react-icons/hi2';
 import EmpleadoModal from './EmpleadoModal';
 
-// 1. Interfaz alineada exactamente con los campos que valida tu EmployeeController
 export interface Empleado {
   id?: number;
   payroll_id: string;
@@ -41,7 +41,6 @@ export default function EmpleadoDetalle() {
   const [errorMsg, setErrorMsg] = useState('');
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
-  // 2. Petición para traer los datos del empleado desde Laravel
   useEffect(() => {
     const fetchEmpleado = async () => {
       setIsLoading(true);
@@ -64,7 +63,6 @@ export default function EmpleadoDetalle() {
     fetchEmpleado();
   }, [id, refreshTrigger]);
 
-  // 3. Guardar cambios actualizados enviando las variables exactas que pide el controlador
   const handleSaveEmpleado = async (updatedData: Empleado) => {
     try {
       const token = localStorage.getItem('token');
@@ -91,8 +89,12 @@ export default function EmpleadoDetalle() {
   const fechaLimpia = empleado.created_at ? empleado.created_at.split('T')[0] : 'N/A';
 
   return (
-    <div className="p-6 bg-dark-bg text-gris-calido min-h-screen space-y-6">
-      
+    <motion.div 
+      initial={{ opacity: 0, y: 15 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+      className="p-6 bg-dark-bg text-gris-calido min-h-screen space-y-6"
+    >
       <div className="flex items-center justify-between">
         <Link 
           to="/Empleados" 
@@ -102,18 +104,19 @@ export default function EmpleadoDetalle() {
           Volver al listado
         </Link>
 
-        <button 
+        <motion.button 
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
           onClick={() => setIsModalOpen(true)}
           className="flex items-center gap-2 border border-amber-500/40 text-amber-400 hover:bg-amber-500/10 px-4 py-2 rounded-lg text-sm font-semibold transition-all"
         >
           <HiOutlinePencilSquare className="text-lg" />
           Editar Perfil
-        </button>
+        </motion.button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        <div className="bg-dark-card border border-dark-border rounded-xl p-6 flex flex-col items-center text-center justify-between space-y-6">
+        <div className="bg-dark-card border border-dark-border rounded-xl p-6 flex flex-col items-center text-center justify-between space-y-6 shadow-sm">
           <div className="w-full flex flex-col items-center space-y-3">
             <div className="w-20 h-20 bg-neo-mint/10 text-neo-mint rounded-full flex items-center justify-center border border-neo-mint/20">
               <HiOutlineUser className="text-4xl" />
@@ -121,7 +124,6 @@ export default function EmpleadoDetalle() {
             
             <h1 className="text-2xl font-bold text-white">{empleado.first_name} {empleado.last_name}</h1>
             
-            {/* Pintamos el rol real que viene de la relación with('role') */}
             <span className="px-3 py-1 bg-ghost-blue/10 text-ghost-blue text-xs font-semibold rounded-full border border-ghost-blue/20">
               {empleado.role ? empleado.role.name : 'Sin rol asignado'}
             </span>
@@ -140,7 +142,7 @@ export default function EmpleadoDetalle() {
           </div>
         </div>
 
-        <div className="lg:col-span-2 bg-dark-card border border-dark-border rounded-xl p-6 space-y-6">
+        <div className="lg:col-span-2 bg-dark-card border border-dark-border rounded-xl p-6 space-y-6 shadow-sm">
           <h2 className="text-lg font-bold text-white border-b border-dark-border pb-3">
             Información Detallada
           </h2>
@@ -195,6 +197,6 @@ export default function EmpleadoDetalle() {
         onSave={handleSaveEmpleado}
         initialData={empleado}
       />
-    </div>
+    </motion.div>
   );
 }

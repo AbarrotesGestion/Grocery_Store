@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { motion } from 'motion/react';
 import axios from 'axios';
 import { 
   HiOutlineArrowLeft, 
@@ -7,7 +8,6 @@ import {
   HiOutlinePrinter 
 } from 'react-icons/hi2';
 
-// Interfaz adaptada al objeto que devuelve tu show() en SaleController
 interface VentaDetalleData {
   id: number;
   sale_group_id?: string;
@@ -70,20 +70,22 @@ export default function VentaDetalle() {
     return <div className="p-6 bg-dark-bg text-rose-500 min-h-screen flex items-center justify-center">{errorMsg || 'Venta no encontrada'}</div>;
   }
 
-  // Limpieza de fecha y hora
   const fechaCompleta = ticket.created_at ? ticket.created_at.replace('T', ' ').substring(0, 19) : 'N/A';
   const vendedorNombre = ticket.employee ? `${ticket.employee.first_name} ${ticket.employee.last_name}` : 'Cajero general';
   const productoNombre = ticket.product?.name || 'Producto genérico';
   const precioUnitario = ticket.product?.price ? Number(ticket.product.price) : (ticket.total_price / ticket.quantity);
 
-  // Identificador de la unidad de medida según el backend
   let unidadTexto = 'unidad(es)';
   if (ticket.sale_unit_type === 'weight') unidadTexto = 'kg';
   if (ticket.sale_unit_type === 'package') unidadTexto = 'paquete(s)';
 
   return (
-    <div className="p-6 bg-dark-bg text-gris-calido min-h-screen space-y-6">
-      
+    <motion.div 
+      initial={{ opacity: 0, y: 15 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+      className="p-6 bg-dark-bg text-gris-calido min-h-screen space-y-6"
+    >
       <div className="flex items-center justify-between">
         <Link 
           to="/Historial-Ventas" 
@@ -93,17 +95,23 @@ export default function VentaDetalle() {
           Volver al historial
         </Link>
 
-        <button 
+        <motion.button 
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
           onClick={() => window.print()}
           className="flex items-center gap-2 bg-rose-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-rose-500 transition-all shadow-md shadow-rose-600/20"
         >
           <HiOutlinePrinter className="text-lg" />
           Imprimir Comprobante
-        </button>
+        </motion.button>
       </div>
 
-      <div className="max-w-md mx-auto bg-dark-card border border-dark-border rounded-xl p-8 space-y-6 shadow-2xl">
-        
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.2 }}
+        className="max-w-md mx-auto bg-dark-card border border-dark-border rounded-xl p-8 space-y-6 shadow-2xl"
+      >
         <div className="text-center space-y-2 border-b border-dark-border pb-6">
           <div className="w-12 h-12 bg-neo-mint/10 text-neo-mint rounded-xl flex items-center justify-center mx-auto border border-neo-mint/20">
             <HiOutlineShoppingBag className="text-2xl" />
@@ -123,7 +131,7 @@ export default function VentaDetalle() {
           </div>
           <div className="flex justify-between">
             <span className="text-gris-calido/60">Método de Pago:</span>
-            <span className="text-white font-uppercase font-semibold">{ticket.payment_method || 'cash'}</span>
+            <span className="text-white uppercase font-semibold">{ticket.payment_method || 'cash'}</span>
           </div>
         </div>
 
@@ -159,9 +167,7 @@ export default function VentaDetalle() {
         <div className="pt-4 text-center">
           <p className="text-xs italic text-gris-calido/50">¡Gracias por su compra!</p>
         </div>
-
-      </div>
-
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }

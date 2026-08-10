@@ -1,4 +1,5 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { AnimatePresence, motion } from 'motion/react';
 import Landing from './views/Landing';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
@@ -7,29 +8,47 @@ import CategoriaScreen from './components/Categorias/CategoriaScreen';
 import CategoriaDetalle from './components/Categorias/CategoriaDetalle';
 import ProductosScreen from './components/Productos/ProductoScreen';
 import ProductoDetalle from './components/Productos/ProductoDetalle';
+import ProductosEliminados from './components/Productos/ProductosEliminados';
 import HistorialVentasScreen from './components/Historial/HistorialVentasScreen';
 import VentaDetalle from './components/Historial/VentaDetalle';
 import ClientesScreen from './components/Clientes/ClientesScreen';
 import ClienteDetalle from './components/Clientes/ClienteDetalle';
-import DeudaClienteDetalle from './components/Deuda_Clientes/DeudaClienteDetalle';
 import CobrosClientesScreen from './components/Deuda_Clientes/CobrosClientesScreen';
+import DeudaClienteDetalle from './components/Deuda_Clientes/DeudaClienteDetalle';
 import EmpleadosScreen from './components/Empleados/EmpleadosScreen';
 import EmpleadoDetalle from './components/Empleados/EmpleadoDetalle';
-import ProductosEliminados from './components/Productos/ProductosEliminados';
 
+// Nuevos módulos integrados y optimizados
 import AjustesInventarioScreen from './components/inventarios/AjustesInventarioScreen';
-import CashRegistersScreen from './components/cashregister/CashRegistersScreen';
-import RolesScreen from './components/roles/RolesScreen';
-import ProveedoresScreen from './components/proveedores/ProveedoresScreen';
-import DeudasProveedoresScreen from './components/proveedores/DeudasProveedoresScreen';
-import ProviderFundsScreen from './components/proveedores/ProviderFundsScreen';
-import NotasProveedorScreen from './components/notasProveedor/NotasProveedoresScreen';
-import NotaTratoDetalleScreen from './components/notasProveedor/NotaTratoDetalleScreen'; // <--- Importación de Detalle de Nota
+import CashRegistersScreen from './components/Caja/CashRegistersScreen';
+import RolesScreen from './components/Roles/RolesScreen';
+import ProveedoresScreen from './components/Proveedores/ProveedoresScreen';
+import ProveedorDetalle from './components/Proveedores/ProveedorDetalle';
+import DeudasProveedoresScreen from './components/Proveedores/DeudasProveedoresScreen';
+import ProviderFundsScreen from './components/Proveedores/ProviderFundsScreen';
+import NotasProveedorScreen from './components/NotasProveedor/NotasProveedorScreen';
+import NotaTratoDetalleScreen from './components/NotasProveedor/NotaTratoDetalleScreen';
 
-function App() {
+// Componente wrapper para dar animación fluida de entrada a cada vista
+function AnimatedRoute({ children }: { children: React.ReactNode }) {
   return (
-    <BrowserRouter>
-      <Routes>
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -12 }}
+      transition={{ duration: 0.3, ease: "easeInOut" }}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
+function AnimatedRoutes() {
+  const location = useLocation();
+
+  return (
+    <AnimatePresence mode="wait">
+      <Routes location={location} key={location.pathname}>
         <Route path="/" element={<Landing />} />
         <Route path="/login" element={<Login />} />
         
@@ -37,7 +56,7 @@ function App() {
           path="/dashboard"
           element={
             <Layout>
-              <Dashboard />
+              <AnimatedRoute><Dashboard /></AnimatedRoute>
             </Layout>
           }
         />
@@ -45,7 +64,7 @@ function App() {
           path="/Categorias" 
           element={
             <Layout>
-              <CategoriaScreen />
+              <AnimatedRoute><CategoriaScreen /></AnimatedRoute>
             </Layout>
           } 
         />
@@ -53,7 +72,7 @@ function App() {
           path="/Categorias/:id" 
           element={
             <Layout>
-              <CategoriaDetalle />
+              <AnimatedRoute><CategoriaDetalle /></AnimatedRoute>
             </Layout>
           } 
         />
@@ -61,7 +80,7 @@ function App() {
           path="/Productos" 
           element={
             <Layout>
-              <ProductosScreen />
+              <AnimatedRoute><ProductosScreen /></AnimatedRoute>
             </Layout>
           } 
         />
@@ -69,7 +88,7 @@ function App() {
           path="/Productos/:id" 
           element={
             <Layout>
-              <ProductoDetalle />
+              <AnimatedRoute><ProductoDetalle /></AnimatedRoute>
             </Layout>
           } 
         />
@@ -77,7 +96,7 @@ function App() {
           path="/Productos-eliminados" 
           element={
             <Layout>
-              <ProductosEliminados />
+              <AnimatedRoute><ProductosEliminados /></AnimatedRoute>
             </Layout>
           } 
         />
@@ -86,7 +105,7 @@ function App() {
           path="/ajustes-inventario" 
           element={
             <Layout>
-              <AjustesInventarioScreen />
+              <AnimatedRoute><AjustesInventarioScreen /></AnimatedRoute>
             </Layout>
           } 
         />
@@ -95,7 +114,7 @@ function App() {
           path="/Ventas" 
           element={
             <Layout>
-              <HistorialVentasScreen />
+              <AnimatedRoute><HistorialVentasScreen /></AnimatedRoute>
             </Layout>
           } 
         />
@@ -103,7 +122,7 @@ function App() {
           path="/Ventas/:id" 
           element={
             <Layout>
-              <VentaDetalle />
+              <AnimatedRoute><VentaDetalle /></AnimatedRoute>
             </Layout>
           } 
         />
@@ -111,7 +130,7 @@ function App() {
           path="/Clientes" 
           element={
             <Layout>
-              <ClientesScreen />
+              <AnimatedRoute><ClientesScreen /></AnimatedRoute>
             </Layout>
           } 
         />
@@ -119,7 +138,7 @@ function App() {
           path="/Clientes/:id" 
           element={
             <Layout>
-              <ClienteDetalle />
+              <AnimatedRoute><ClienteDetalle /></AnimatedRoute>
             </Layout>
           } 
         />
@@ -127,7 +146,7 @@ function App() {
           path="/Cliente-deudas" 
           element={
             <Layout>
-              <CobrosClientesScreen />
+              <AnimatedRoute><CobrosClientesScreen /></AnimatedRoute>
             </Layout>
           } 
         />
@@ -135,7 +154,7 @@ function App() {
           path="/Cliente-deudas/:id" 
           element={
             <Layout>
-              <DeudaClienteDetalle />
+              <AnimatedRoute><DeudaClienteDetalle /></AnimatedRoute>
             </Layout>
           } 
         />
@@ -144,7 +163,7 @@ function App() {
           path="/caja" 
           element={
             <Layout>
-              <CashRegistersScreen />
+              <AnimatedRoute><CashRegistersScreen /></AnimatedRoute>
             </Layout>
           } 
         />
@@ -153,7 +172,7 @@ function App() {
           path="/Empleados" 
           element={
             <Layout>
-              <EmpleadosScreen />
+              <AnimatedRoute><EmpleadosScreen /></AnimatedRoute>
             </Layout>
           } 
         />
@@ -161,7 +180,7 @@ function App() {
           path="/Empleados/:id" 
           element={
             <Layout>
-              <EmpleadoDetalle />
+              <AnimatedRoute><EmpleadoDetalle /></AnimatedRoute>
             </Layout>
           } 
         />
@@ -170,7 +189,7 @@ function App() {
           path="/roles" 
           element={
             <Layout>
-              <RolesScreen />
+              <AnimatedRoute><RolesScreen /></AnimatedRoute>
             </Layout>
           } 
         />
@@ -178,7 +197,15 @@ function App() {
           path="/proveedores" 
           element={
             <Layout>
-              <ProveedoresScreen />
+              <AnimatedRoute><ProveedoresScreen /></AnimatedRoute>
+            </Layout>
+          } 
+        />
+        <Route 
+          path="/proveedores/:id" 
+          element={
+            <Layout>
+              <AnimatedRoute><ProveedorDetalle /></AnimatedRoute>
             </Layout>
           } 
         />
@@ -186,7 +213,7 @@ function App() {
           path="/deudas-proveedores" 
           element={
             <Layout>
-              <DeudasProveedoresScreen />
+              <AnimatedRoute><DeudasProveedoresScreen /></AnimatedRoute>
             </Layout>
           } 
         />
@@ -194,7 +221,7 @@ function App() {
           path="/fondos-proveedores" 
           element={
             <Layout>
-              <ProviderFundsScreen />
+              <AnimatedRoute><ProviderFundsScreen /></AnimatedRoute>
             </Layout>
           } 
         />
@@ -204,7 +231,7 @@ function App() {
           path="/notas-proveedor" 
           element={
             <Layout>
-              <NotasProveedorScreen />
+              <AnimatedRoute><NotasProveedorScreen /></AnimatedRoute>
             </Layout>
           } 
         />
@@ -212,11 +239,19 @@ function App() {
           path="/notas-proveedor/:id" 
           element={
             <Layout>
-              <NotaTratoDetalleScreen />
+              <AnimatedRoute><NotaTratoDetalleScreen /></AnimatedRoute>
             </Layout>
           } 
         />
       </Routes>
+    </AnimatePresence>
+  );
+}
+
+function App() {
+  return (
+    <BrowserRouter>
+      <AnimatedRoutes />
     </BrowserRouter>
   );
 }

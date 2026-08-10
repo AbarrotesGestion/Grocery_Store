@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react'; // Quitamos 'React' para limpiar el primer warning
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { motion } from 'motion/react';
 import axios from 'axios';
 import { 
   HiPlus, 
@@ -11,7 +12,6 @@ import {
 } from 'react-icons/hi2';
 import CategoriaModal from './CategoriaModal';
 
-// 1. Creamos una interfaz básica para callar el error de "Unexpected any"
 interface Producto {
   id: number;
 }
@@ -20,7 +20,7 @@ interface Categoria {
   id: number;
   name: string;
   description: string;
-  products?: Producto[]; // Ya usamos un tipo definido en lugar de 'any'
+  products?: Producto[];
 }
 
 export default function Categorias() {
@@ -31,12 +31,9 @@ export default function Categorias() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<Categoria | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-
-  // 2. Creamos un disparador para recargar la lista
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
-  // 3. Metemos la función DENTRO del useEffect para cumplir la regla del linter
-useEffect(() => {
+  useEffect(() => {
     const fetchCategorias = async () => {
       setIsLoading(true);
       try {
@@ -45,10 +42,7 @@ useEffect(() => {
           headers: { Authorization: `Bearer ${token}` }
         });
         
-        // LA CORRECCIÓN: Revisamos si Laravel envolvió los datos en la propiedad 'data'
         const dataRevisada = response.data.data || response.data;
-        
-        // Nos aseguramos al 100% de que sea un arreglo antes de guardarlo en el estado
         setCategorias(Array.isArray(dataRevisada) ? dataRevisada : []);
         
       } catch (error) {
@@ -58,9 +52,8 @@ useEffect(() => {
       }
     };
 
-    // ¡Aquí es donde le decimos a React que ejecute la función!
     fetchCategorias(); 
-  }, [refreshTrigger]); // Se vuelve a ejecutar mágicamente cada vez que refreshTrigger cambia
+  }, [refreshTrigger]);
 
   const handleOpenNewModal = () => {
     setSelectedCategory(null);
@@ -86,7 +79,6 @@ useEffect(() => {
         });
       }
       
-      // 4. Movemos el disparador para que el useEffect re-consulte la base de datos
       setRefreshTrigger(prev => prev + 1);
       setIsModalOpen(false);
     } catch (error) {
@@ -111,28 +103,35 @@ useEffect(() => {
     }
   };
 
- const categoriasFiltradas = (Array.isArray(categorias) ? categorias : []).filter(cat =>
+  const categoriasFiltradas = (Array.isArray(categorias) ? categorias : []).filter(cat =>
     cat.name?.toLowerCase().includes(search.toLowerCase()) ||
     cat.description?.toLowerCase().includes(search.toLowerCase())
   );
+
   return (
-    <div className="p-6 bg-dark-bg text-gris-calido min-h-screen space-y-6">
-      
+    <motion.div 
+      initial={{ opacity: 0, y: 15 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+      className="p-6 bg-dark-bg text-gris-calido min-h-screen space-y-6"
+    >
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-white tracking-wide">Categorías de Productos</h1>
           <p className="text-sm text-gris-calido/70">Gestión y clasificación del catálogo de inventario.</p>
         </div>
-        <button 
+        <motion.button 
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
           onClick={handleOpenNewModal}
           className="flex items-center justify-center gap-2 bg-neo-mint text-dark-bg font-semibold px-4 py-2.5 rounded-lg hover:bg-neo-mint/90 transition-all shadow-lg shadow-neo-mint/10"
         >
           <HiPlus className="text-lg font-bold" />
           Nueva Categoría
-        </button>
+        </motion.button>
       </div>
 
-      <div className="bg-dark-card border border-dark-border p-4 rounded-xl flex items-center gap-3">
+      <div className="bg-dark-card border border-dark-border p-4 rounded-xl flex items-center gap-3 shadow-sm">
         <HiOutlineMagnifyingGlass className="text-xl text-gris-calido/60" />
         <input 
           type="text"
@@ -162,9 +161,14 @@ useEffect(() => {
                   </td>
                 </tr>
               ) : categoriasFiltradas.length > 0 ? (
-                categoriasFiltradas.map((cat) => (
-                  <tr key={cat.id} className="hover:bg-dark-bg/40 transition-colors">
-                    
+                categoriasFiltradas.map((cat, index) => (
+                  <motion.tr 
+                    key={cat.id} 
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.2, delay: index * 0.05 }}
+                    className="hover:bg-dark-bg/40 transition-colors"
+                  >
                     <td className="py-4 px-6 font-medium text-white flex items-center gap-3">
                       <div className="p-2 bg-neo-mint/10 rounded-lg text-neo-mint">
                         <HiOutlineFolder className="text-lg" />
@@ -184,32 +188,38 @@ useEffect(() => {
 
                     <td className="py-4 px-6 text-right">
                       <div className="flex items-center justify-end gap-2">
-                        <button 
+                        <motion.button 
+                          whileHover={{ scale: 1.1 }}
+                          whileTap={{ scale: 0.9 }}
                           title="Ver detalle"
                           onClick={() => navigate(`/Categorias/${cat.id}`)}
                           className="p-1.5 hover:bg-dark-bg rounded-md text-ghost-blue hover:text-white transition-colors"
                         >
                           <HiOutlineEye className="text-lg" />
-                        </button>
+                        </motion.button>
 
-                        <button 
+                        <motion.button 
+                          whileHover={{ scale: 1.1 }}
+                          whileTap={{ scale: 0.9 }}
                           title="Editar"
                           onClick={() => handleOpenEditModal(cat)}
                           className="p-1.5 hover:bg-dark-bg rounded-md text-amber-400 hover:text-amber-300 transition-colors"
                         >
                           <HiOutlinePencilSquare className="text-lg" />
-                        </button>
+                        </motion.button>
 
-                        <button 
+                        <motion.button 
+                          whileHover={{ scale: 1.1 }}
+                          whileTap={{ scale: 0.9 }}
                           title="Eliminar"
                           onClick={() => handleDeleteCategory(cat.id)}
                           className="p-1.5 hover:bg-dark-bg rounded-md text-rose-500 hover:text-rose-400 transition-colors"
                         >
                           <HiOutlineTrash className="text-lg" />
-                        </button>
+                        </motion.button>
                       </div>
                     </td>
-                  </tr>
+                  </motion.tr>
                 ))
               ) : (
                 <tr>
@@ -229,6 +239,6 @@ useEffect(() => {
         onSave={handleSaveCategory}
         initialData={selectedCategory}
       />
-    </div>
+    </motion.div>
   );
 }

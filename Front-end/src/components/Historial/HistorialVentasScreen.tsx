@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { motion } from 'motion/react';
 import axios from 'axios';
 import { 
   HiPlus, 
@@ -11,7 +12,6 @@ import {
   HiOutlineUser
 } from 'react-icons/hi2';
 
-// 1. Interfaz adaptada al controlador (quantity ahora es number para soportar decimales por peso/granel)
 export interface Venta {
   id: number;
   sale_group_id?: string;
@@ -38,7 +38,6 @@ export default function HistorialVentasScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
-  // 2. Petición para traer el historial de ventas desde Laravel
   useEffect(() => {
     const fetchVentas = async () => {
       setIsLoading(true);
@@ -60,7 +59,6 @@ export default function HistorialVentasScreen() {
     fetchVentas();
   }, [refreshTrigger]);
 
-  // 3. Función conectada a tu backend para cancelar una venta
   const handleCancelVenta = async (id: number) => {
     if (window.confirm('¿Estás seguro de que deseas cancelar esta venta? Se devolverá el stock al inventario.')) {
       try {
@@ -69,7 +67,6 @@ export default function HistorialVentasScreen() {
           headers: { Authorization: `Bearer ${token}` }
         });
 
-        // Refrescamos la lista de ventas para ver el cambio de estado
         setRefreshTrigger(prev => prev + 1);
         alert('Venta cancelada exitosamente.');
       } catch (error: any) {
@@ -80,7 +77,6 @@ export default function HistorialVentasScreen() {
     }
   };
 
-  // Filtrado optimizado considerando las relaciones de la API
   const ventasFiltradas = (Array.isArray(ventas) ? ventas : []).filter(v => {
     const query = search.toLowerCase();
     const folio = String(v.id || '').toLowerCase();
@@ -92,24 +88,30 @@ export default function HistorialVentasScreen() {
   });
 
   return (
-    <div className="p-6 bg-dark-bg text-gris-calido min-h-screen space-y-6">
-      
+    <motion.div 
+      initial={{ opacity: 0, y: 15 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+      className="p-6 bg-dark-bg text-gris-calido min-h-screen space-y-6"
+    >
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-white tracking-wide">Historial de Ventas</h1>
           <p className="text-sm text-gris-calido/70">Registro General de Operaciones.</p>
         </div>
         
-        <button 
+        <motion.button 
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
           onClick={() => navigate('/pos')}
           className="flex items-center justify-center gap-2 bg-neo-mint text-dark-bg font-semibold px-4 py-2.5 rounded-lg hover:bg-neo-mint/90 transition-all shadow-lg shadow-neo-mint/10"
         >
           <HiPlus className="text-lg font-bold" />
           Nueva Venta
-        </button>
+        </motion.button>
       </div>
 
-      <div className="bg-dark-card border border-dark-border p-4 rounded-xl flex items-center gap-3">
+      <div className="bg-dark-card border border-dark-border p-4 rounded-xl flex items-center gap-3 shadow-sm">
         <HiOutlineMagnifyingGlass className="text-xl text-gris-calido/60" />
         <input 
           type="text"
@@ -142,20 +144,24 @@ export default function HistorialVentasScreen() {
                   </td>
                 </tr>
               ) : ventasFiltradas.length > 0 ? (
-                ventasFiltradas.map((v) => {
+                ventasFiltradas.map((v, index) => {
                   const fechaPartes = v.created_at ? v.created_at.split('T') : ['N/A', 'N/A'];
                   const fecha = fechaPartes[0];
                   const hora = fechaPartes[1] ? fechaPartes[1].substring(0, 5) : '';
                   const isCancelled = v.status === 'cancelled';
 
-                  // Identificador de la unidad de medida según el backend
                   let unidadTexto = 'unidad(es)';
                   if (v.sale_unit_type === 'weight') unidadTexto = 'kg';
                   if (v.sale_unit_type === 'package') unidadTexto = 'paquete(s)';
 
                   return (
-                    <tr key={v.id} className={`hover:bg-dark-bg/40 transition-colors ${isCancelled ? 'opacity-50 bg-rose-500/5' : ''}`}>
-                      
+                    <motion.tr 
+                      key={v.id} 
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ duration: 0.2, delay: index * 0.05 }}
+                      className={`hover:bg-dark-bg/40 transition-colors ${isCancelled ? 'opacity-50 bg-rose-500/5' : ''}`}
+                    >
                       <td className="py-4 px-6 font-semibold text-ghost-blue font-mono">
                         #{v.id}
                       </td>
@@ -191,43 +197,50 @@ export default function HistorialVentasScreen() {
 
                       <td className="py-4 px-6 text-right">
                         <div className="flex items-center justify-end gap-1.5">
-                          
-                          <button 
+                          <motion.button 
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
                             title="Descargar PDF"
                             onClick={() => alert(`Generando PDF del ticket #${v.id}`)}
                             className="p-1.5 hover:bg-dark-bg rounded-md text-rose-400 hover:text-rose-300 transition-colors"
                           >
                             <HiOutlineDocumentText className="text-lg" />
-                          </button>
+                          </motion.button>
 
-                          <button 
+                          <motion.button 
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
                             title="Ver Ticket"
                             onClick={() => navigate(`/Ventas/${v.id}`)}
                             className="p-1.5 hover:bg-dark-bg rounded-md text-ghost-blue hover:text-white transition-colors"
                           >
                             <HiOutlineEye className="text-lg" />
-                          </button>
+                          </motion.button>
 
-                          <button 
+                          <motion.button 
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
                             title="Devolución"
                             onClick={() => alert(`Devolución de la venta #${v.id}`)}
                             className="p-1.5 hover:bg-dark-bg rounded-md text-amber-400 hover:text-amber-300 transition-colors"
                           >
                             <HiOutlineArrowPath className="text-lg" />
-                          </button>
+                          </motion.button>
 
                           {!isCancelled && (
-                            <button 
+                            <motion.button 
+                              whileHover={{ scale: 1.1 }}
+                              whileTap={{ scale: 0.9 }}
                               title="Cancelar Venta"
                               onClick={() => handleCancelVenta(v.id)}
                               className="p-1.5 hover:bg-dark-bg rounded-md text-rose-500 hover:text-rose-400 transition-colors"
                             >
                               <HiOutlineNoSymbol className="text-lg" />
-                            </button>
+                            </motion.button>
                           )}
                         </div>
                       </td>
-                    </tr>
+                    </motion.tr>
                   );
                 })
               ) : (
@@ -241,6 +254,6 @@ export default function HistorialVentasScreen() {
           </table>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }

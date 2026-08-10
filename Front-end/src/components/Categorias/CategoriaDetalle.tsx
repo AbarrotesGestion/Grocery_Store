@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { motion } from 'motion/react';
 import axios from 'axios';
 import { 
   HiOutlineArrowLeft, 
@@ -9,7 +10,6 @@ import {
 } from 'react-icons/hi2';
 import CategoriaModal from './CategoriaModal';
 
-// Interfaces actualizadas al inglés para coincidir con la BD
 interface Producto {
   id: number;
   name: string; 
@@ -40,7 +40,7 @@ export default function CategoriaDetalle() {
           headers: { Authorization: `Bearer ${token}` }
         });
         
-        setCategoria(response.data);
+        setCategoria(response.data.data || response.data);
       } catch (error) {
         console.error('Error al cargar la categoría:', error);
         setErrorMsg('No se pudo cargar la información de la categoría.');
@@ -52,7 +52,6 @@ export default function CategoriaDetalle() {
     fetchCategoria();
   }, [id]);
 
-  // Actualizado para enviar 'name' y 'description' al backend
   const handleSaveModal = async (updatedData: { name: string; description: string }) => {
     try {
       const token = localStorage.getItem('token');
@@ -82,8 +81,12 @@ export default function CategoriaDetalle() {
   }
 
   return (
-    <div className="p-6 bg-dark-bg text-gris-calido min-h-screen space-y-6">
-      
+    <motion.div 
+      initial={{ opacity: 0, y: 15 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+      className="p-6 bg-dark-bg text-gris-calido min-h-screen space-y-6"
+    >
       <div>
         <Link 
           to="/Categorias" 
@@ -95,8 +98,7 @@ export default function CategoriaDetalle() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        <div className="bg-dark-card border border-dark-border rounded-xl p-6 flex flex-col items-center text-center justify-between space-y-6">
+        <div className="bg-dark-card border border-dark-border rounded-xl p-6 flex flex-col items-center text-center justify-between space-y-6 shadow-sm">
           <div className="w-full flex flex-col items-center space-y-4">
             <div className="p-5 bg-neo-mint/10 text-neo-mint rounded-2xl border border-neo-mint/20">
               <HiOutlineTag className="text-4xl" />
@@ -114,16 +116,18 @@ export default function CategoriaDetalle() {
             </div>
           </div>
 
-          <button 
+          <motion.button 
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
             onClick={() => setIsModalOpen(true)}
             className="w-full flex items-center justify-center gap-2 border border-amber-500/40 text-amber-400 hover:bg-amber-500/10 py-2.5 rounded-lg text-sm font-semibold transition-all"
           >
             <HiOutlinePencilSquare className="text-lg" />
             Editar Categoría
-          </button>
+          </motion.button>
         </div>
 
-        <div className="lg:col-span-2 bg-dark-card border border-dark-border rounded-xl p-6">
+        <div className="lg:col-span-2 bg-dark-card border border-dark-border rounded-xl p-6 shadow-sm">
           <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
             <HiOutlineCube className="text-neo-mint text-xl" />
             Productos en esta categoría
@@ -140,9 +144,15 @@ export default function CategoriaDetalle() {
               </thead>
               <tbody className="divide-y divide-dark-border">
                 {categoria.products && categoria.products.length > 0 ? (
-                  categoria.products.map((prod) => (
-                    <tr key={prod.id} className="hover:bg-dark-bg/40 transition-colors">
-                      <td className="py-3.5 px-4 font-medium text-neo-mint hover:underline cursor-pointer">
+                  categoria.products.map((prod, index) => (
+                    <motion.tr 
+                      key={prod.id} 
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ duration: 0.2, delay: index * 0.05 }}
+                      className="hover:bg-dark-bg/40 transition-colors"
+                    >
+                      <td className="py-3.5 px-4 font-medium text-neo-mint">
                         {prod.name}
                       </td>
                       <td className="py-3.5 px-4 text-center">
@@ -153,7 +163,7 @@ export default function CategoriaDetalle() {
                       <td className="py-3.5 px-4 text-right font-bold text-white">
                         ${Number(prod.price).toFixed(2)}
                       </td>
-                    </tr>
+                    </motion.tr>
                   ))
                 ) : (
                   <tr>
@@ -173,10 +183,9 @@ export default function CategoriaDetalle() {
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
           onSave={handleSaveModal}
-          // Pasamos los datos iniciales con las llaves en inglés
           initialData={{ id: categoria.id, name: categoria.name, description: categoria.description }}
         />
       )}
-    </div>
+    </motion.div>
   );
 }

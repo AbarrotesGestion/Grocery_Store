@@ -4,100 +4,93 @@ import { motion } from 'motion/react';
 import axios from 'axios';
 import { 
   HiPlus, 
-  HiOutlineUsers, 
+  HiOutlineTruck, 
   HiOutlineEye, 
   HiOutlinePencilSquare, 
   HiOutlineTrash, 
   HiOutlineMagnifyingGlass,
-  HiOutlineSparkles,
+  HiOutlinePhone,
   HiOutlineEnvelope,
-  HiOutlinePhone
+  HiOutlineSparkles
 } from 'react-icons/hi2';
-import EmpleadoModal from './EmpleadoModal';
-import { type Empleado } from './EmpleadoDetalle';
+import ProveedorModal from './ProveedorModal';
+
+export interface Proveedor {
+  id?: number;
+  company_name: string;
+  contact_name: string;
+  phone?: string;
+  email?: string;
+  debts?: any[];
+  created_at?: string;
+}
 
 const extraerMensajeError = (error: any) => {
   const data = error.response?.data;
   return data?.message ?? data?.error ?? 'Ocurrió un error inesperado';
 };
 
-export default function EmpleadosScreen() {
+export default function ProveedoresScreen() {
   const navigate = useNavigate();
 
-  const [empleados, setEmpleados] = useState<Empleado[]>([]);
+  const [proveedores, setProveedores] = useState<Proveedor[]>([]);
   const [search, setSearch] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedEmpleado, setSelectedEmpleado] = useState<Empleado | null>(null);
-
-  const token = localStorage.getItem('token');
-  const headers = { Authorization: `Bearer ${token}` };
+  const [selectedProveedor, setSelectedProveedor] = useState<Proveedor | null>(null);
 
   useEffect(() => {
-    const fetchEmpleados = async () => {
+    const fetchProveedores = async () => {
       setIsLoading(true);
       try {
-        const response = await axios.get('https://api.yahirdev.dev/api/employees', { headers });
+        const token = localStorage.getItem('token');
+        const response = await axios.get('https://api.yahirdev.dev/api/suppliers', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+
         const data = response.data.data || response.data;
-        setEmpleados(Array.isArray(data) ? data : []);
+        setProveedores(Array.isArray(data) ? data : []);
       } catch (error) {
-        console.error('Error al cargar empleados:', extraerMensajeError(error));
+        console.error('Error al cargar proveedores:', extraerMensajeError(error));
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchEmpleados();
+    fetchProveedores();
   }, [refreshTrigger]);
 
   const handleOpenNewModal = () => {
-    setSelectedEmpleado(null);
+    setSelectedProveedor(null);
     setIsModalOpen(true);
   };
 
-  const handleOpenEditModal = (emp: Empleado) => {
-    setSelectedEmpleado(emp);
+  const handleOpenEditModal = (prov: Proveedor) => {
+    setSelectedProveedor(prov);
     setIsModalOpen(true);
   };
 
-  const handleSaveEmpleado = async (formData: Empleado) => {
-    try {
-      if (selectedEmpleado?.id) {
-        await axios.put(`https://api.yahirdev.dev/api/employees/${selectedEmpleado.id}`, formData, { headers });
-        alert('Empleado actualizado exitosamente.');
-      } else {
-        const res = await axios.post('https://api.yahirdev.dev/api/employees', formData, { headers });
-        if (res.data.temporary_password) {
-          alert(`Empleado creado exitosamente.\nContraseña temporal asignada: ${res.data.temporary_password}`);
-        } else {
-          alert('Empleado creado exitosamente.');
-        }
-      }
-      setIsModalOpen(false);
-      setRefreshTrigger(prev => prev + 1);
-    } catch (error) {
-      alert(extraerMensajeError(error));
-    }
-  };
-
-  const handleDeleteEmpleado = async (id: number) => {
-    if (window.confirm('¿Estás seguro de eliminar este empleado?')) {
+  const handleDeleteProveedor = async (id: number) => {
+    if (window.confirm('¿Estás seguro de eliminar este proveedor?')) {
       try {
-        await axios.delete(`https://api.yahirdev.dev/api/employees/${id}`, { headers });
+        const token = localStorage.getItem('token');
+        await axios.delete(`https://api.yahirdev.dev/api/suppliers/${id}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
         setRefreshTrigger(prev => prev + 1);
-        alert('Empleado eliminado exitosamente.');
+        alert('Proveedor eliminado exitosamente.');
       } catch (error) {
         alert(extraerMensajeError(error));
       }
     }
   };
 
-  const empleadosFiltrados = empleados.filter(e =>
-    `${e.first_name} ${e.last_name}`.toLowerCase().includes(search.toLowerCase()) ||
-    e.email.toLowerCase().includes(search.toLowerCase()) ||
-    e.payroll_id.toLowerCase().includes(search.toLowerCase())
+  const proveedoresFiltrados = proveedores.filter(p =>
+    p.company_name.toLowerCase().includes(search.toLowerCase()) ||
+    p.contact_name.toLowerCase().includes(search.toLowerCase()) ||
+    (p.email && p.email.toLowerCase().includes(search.toLowerCase()))
   );
 
   return (
@@ -107,6 +100,7 @@ export default function EmpleadosScreen() {
       transition={{ duration: 0.4, ease: "easeOut" }}
       className="p-6 bg-dark-bg text-gris-calido min-h-screen space-y-6"
     >
+      
       {/* HEADER DE LA VISTA */}
       <motion.div 
         initial={{ opacity: 0, x: -20 }}
@@ -118,10 +112,10 @@ export default function EmpleadosScreen() {
         
         <div className="space-y-1 relative z-10">
           <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-neo-mint/10 text-neo-mint border border-neo-mint/20 mb-1">
-            <HiOutlineSparkles className="text-sm" /> Capital Humano
+            <HiOutlineSparkles className="text-sm" /> Red Comercial
           </div>
-          <h1 className="text-3xl font-extrabold text-white tracking-wide">Equipo / Empleados</h1>
-          <p className="text-sm text-gris-calido/75">Directorio del personal, sueldos base, puestos y accesos al sistema.</p>
+          <h1 className="text-3xl font-extrabold text-white tracking-wide">Gestión de Proveedores</h1>
+          <p className="text-sm text-gris-calido/75">Directorio de empresas suministradoras, contactos y cuentas comerciales.</p>
         </div>
 
         <motion.button 
@@ -132,7 +126,7 @@ export default function EmpleadosScreen() {
           className="relative z-10 flex items-center justify-center gap-2 bg-neo-mint text-dark-bg font-bold px-5 py-3 rounded-xl transition-all shadow-lg"
         >
           <HiPlus className="text-xl font-black" />
-          Registrar Empleado
+          Nuevo Proveedor
         </motion.button>
       </motion.div>
 
@@ -141,14 +135,14 @@ export default function EmpleadosScreen() {
         <HiOutlineMagnifyingGlass className="text-xl text-gris-calido/60" />
         <input 
           type="text"
-          placeholder="Buscar por nombre, correo o ID de nómina..."
+          placeholder="Buscar proveedor por empresa, contacto o correo..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="bg-transparent border-none outline-none text-sm text-white w-full placeholder:text-gris-calido/50"
         />
       </div>
 
-      {/* TABLA DE EMPLEADOS ANIMADA */}
+      {/* TABLA DE PROVEEDORES ANIMADA */}
       <motion.div 
         initial={{ opacity: 0, y: 15 }}
         animate={{ opacity: 1, y: 0 }}
@@ -159,59 +153,54 @@ export default function EmpleadosScreen() {
           <table className="w-full text-left text-sm text-gris-calido">
             <thead className="bg-dark-bg/90 text-xs uppercase font-bold text-white/70 border-b border-dark-border">
               <tr>
-                <th className="py-3.5 px-6">ID Nómina</th>
-                <th className="py-3.5 px-6">Empleado</th>
-                <th className="py-3.5 px-6">Rol / Puesto</th>
-                <th className="py-3.5 px-6">Contacto</th>
-                <th className="py-3.5 px-6 text-right">Sueldo Base</th>
+                <th className="py-3.5 px-6">Empresa</th>
+                <th className="py-3.5 px-6">Contacto Principal</th>
+                <th className="py-3.5 px-6">Datos de Contacto</th>
                 <th className="py-3.5 px-6 text-right">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-dark-border/60">
               {isLoading ? (
                 <tr>
-                  <td colSpan={6} className="py-12 text-center text-neo-mint font-semibold animate-pulse">Cargando equipo de trabajo...</td>
+                  <td colSpan={4} className="py-12 text-center text-neo-mint font-semibold animate-pulse">Cargando proveedores...</td>
                 </tr>
-              ) : empleadosFiltrados.length > 0 ? (
-                empleadosFiltrados.map((emp, index) => (
+              ) : proveedoresFiltrados.length > 0 ? (
+                proveedoresFiltrados.map((prov, index) => (
                   <motion.tr 
-                    key={emp.id} 
+                    key={prov.id} 
                     initial={{ opacity: 0, x: -15 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ duration: 0.25, delay: 0.3 + (index * 0.05) }}
                     whileHover={{ backgroundColor: "rgba(255, 255, 255, 0.03)" }}
                     className="transition-colors"
                   >
-                    <td className="py-4 px-6 font-mono text-xs text-ghost-blue font-bold">
-                      {emp.payroll_id}
-                    </td>
-
                     <td className="py-4 px-6 font-semibold text-white flex items-center gap-3">
                       <div className="p-2.5 bg-neo-mint/10 rounded-xl text-neo-mint border border-neo-mint/20 shrink-0">
-                        <HiOutlineUsers className="text-lg" />
+                        <HiOutlineTruck className="text-lg" />
                       </div>
-                      <span>{emp.first_name} {emp.last_name}</span>
+                      <div>
+                        <p className="font-bold text-white text-base">{prov.company_name}</p>
+                        <p className="text-[10px] text-gris-calido/60 font-mono">ID: #{prov.id}</p>
+                      </div>
                     </td>
 
-                    <td className="py-4 px-6">
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-ghost-blue/10 text-ghost-blue border border-ghost-blue/20">
-                        {emp.role?.name || 'Sin rol'}
-                      </span>
+                    <td className="py-4 px-6 text-white font-medium">
+                      {prov.contact_name}
                     </td>
 
                     <td className="py-4 px-6 text-xs space-y-1">
-                      <div className="flex items-center gap-2 text-gris-calido">
-                        <HiOutlineEnvelope className="text-ghost-blue shrink-0" />
-                        <span>{emp.email}</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-gris-calido">
-                        <HiOutlinePhone className="text-neo-mint shrink-0" />
-                        <span>{emp.phone}</span>
-                      </div>
-                    </td>
-
-                    <td className="py-4 px-6 text-right font-bold text-emerald-400">
-                      ${Number(emp.hourly_rate).toFixed(2)} /h
+                      {prov.phone && (
+                        <div className="flex items-center gap-2 text-gris-calido">
+                          <HiOutlinePhone className="text-neo-mint shrink-0" />
+                          <span>{prov.phone}</span>
+                        </div>
+                      )}
+                      {prov.email && (
+                        <div className="flex items-center gap-2 text-gris-calido">
+                          <HiOutlineEnvelope className="text-ghost-blue shrink-0" />
+                          <span>{prov.email}</span>
+                        </div>
+                      )}
                     </td>
 
                     <td className="py-4 px-6 text-right">
@@ -220,8 +209,8 @@ export default function EmpleadosScreen() {
                           whileHover={{ scale: 1.1 }}
                           whileTap={{ scale: 0.9 }}
                           type="button"
-                          title="Ver Perfil Detallado"
-                          onClick={() => navigate(`/Empleados/${emp.id}`)}
+                          title="Ver Detalle"
+                          onClick={() => navigate(`/Proveedores/${prov.id}`)}
                           className="p-1.5 hover:bg-dark-bg rounded-md text-ghost-blue hover:text-white transition-colors"
                         >
                           <HiOutlineEye className="text-lg" />
@@ -232,7 +221,7 @@ export default function EmpleadosScreen() {
                           whileTap={{ scale: 0.9 }}
                           type="button"
                           title="Editar"
-                          onClick={() => handleOpenEditModal(emp)}
+                          onClick={() => handleOpenEditModal(prov)}
                           className="p-1.5 hover:bg-dark-bg rounded-md text-amber-400 hover:text-amber-300 transition-colors"
                         >
                           <HiOutlinePencilSquare className="text-lg" />
@@ -243,7 +232,7 @@ export default function EmpleadosScreen() {
                           whileTap={{ scale: 0.9 }}
                           type="button"
                           title="Eliminar"
-                          onClick={() => handleDeleteEmpleado(emp.id!)}
+                          onClick={() => handleDeleteProveedor(prov.id!)}
                           className="p-1.5 hover:bg-dark-bg rounded-md text-rose-500 hover:text-rose-400 transition-colors"
                         >
                           <HiOutlineTrash className="text-lg" />
@@ -254,8 +243,8 @@ export default function EmpleadosScreen() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={6} className="py-12 text-center text-gris-calido/50">
-                    No se encontraron empleados registrados.
+                  <td colSpan={4} className="py-12 text-center text-gris-calido/50">
+                    No se encontraron proveedores registrados.
                   </td>
                 </tr>
               )}
@@ -264,11 +253,14 @@ export default function EmpleadosScreen() {
         </div>
       </motion.div>
 
-      <EmpleadoModal
+      <ProveedorModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        onSave={handleSaveEmpleado}
-        initialData={selectedEmpleado}
+        initialData={selectedProveedor}
+        onSuccess={() => {
+          setIsModalOpen(false);
+          setRefreshTrigger(prev => prev + 1);
+        }}
       />
     </motion.div>
   );

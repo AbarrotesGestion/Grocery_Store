@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { motion } from 'motion/react';
 import axios from 'axios';
 import { 
   HiOutlineArrowLeft, 
@@ -9,9 +10,8 @@ import {
   HiOutlineScale,
   HiOutlineInboxStack
 } from 'react-icons/hi2';
-import ProductoModal from './ProductoModal';
+import ProductoModal, { type ProductoData } from './ProductoModal';
 
-// Declaramos la interfaz aquí mismo para evitar el error de Vite
 export interface Producto {
   id: number;
   name: string;
@@ -62,7 +62,7 @@ export default function ProductoDetalle() {
         
         setProducto(response.data.data || response.data);
       } catch (error) {
-        console.error('Error al cargar el producto:', error);
+        console.error('Error al cargar el producto:', extraerMensajeError(error));
         setErrorMsg('No se pudo encontrar la información de este producto.');
       } finally {
         setIsLoading(false);
@@ -80,7 +80,6 @@ export default function ProductoDetalle() {
     return <div className="p-6 bg-dark-bg text-rose-500 min-h-screen flex items-center justify-center">{errorMsg || 'Producto no encontrado'}</div>;
   }
 
-  // Cálculos seguros convirtiendo a números
   const precioVenta = parseFloat(String(producto.price || 0));
   const costoCompra = parseFloat(String(producto.purchase_price || 0));
   const ganancia = precioVenta - costoCompra;
@@ -89,8 +88,12 @@ export default function ProductoDetalle() {
     : '0.0';
 
   return (
-    <div className="p-6 bg-dark-bg text-gris-calido min-h-screen space-y-6">
-      
+    <motion.div 
+      initial={{ opacity: 0, y: 15 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+      className="p-6 bg-dark-bg text-gris-calido min-h-screen space-y-6"
+    >
       <div className="flex items-center justify-between">
         <Link 
           to="/Inventario" 
@@ -100,14 +103,16 @@ export default function ProductoDetalle() {
           Volver al catálogo
         </Link>
 
-        <button 
+        <motion.button 
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
           type="button"
           onClick={() => setIsModalOpen(true)}
-          className="flex items-center gap-2 bg-amber-500 text-dark-bg px-4 py-2 rounded-lg text-sm font-bold hover:bg-amber-400 transition-all"
+          className="flex items-center gap-2 bg-amber-500 text-dark-bg px-4 py-2 rounded-lg text-sm font-bold hover:bg-amber-400 transition-all shadow-md"
         >
           <HiOutlinePencilSquare className="text-lg" />
           Editar Información
-        </button>
+        </motion.button>
       </div>
 
       <div className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-xl p-6 flex items-center justify-between text-white shadow-lg">
@@ -132,25 +137,24 @@ export default function ProductoDetalle() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-dark-card border border-dark-border p-5 rounded-xl text-center">
+        <div className="bg-dark-card border border-dark-border p-5 rounded-xl text-center shadow-sm">
           <p className="text-xs font-semibold text-gris-calido/60 uppercase tracking-wider">Costo de Compra</p>
           <h3 className="text-2xl font-bold text-white mt-1">${costoCompra.toFixed(2)}</h3>
         </div>
 
-        <div className="bg-dark-card border border-dark-border p-5 rounded-xl text-center">
+        <div className="bg-dark-card border border-dark-border p-5 rounded-xl text-center shadow-sm">
           <p className="text-xs font-semibold text-ghost-blue uppercase tracking-wider">Precio Base de Venta</p>
           <h3 className="text-2xl font-bold text-ghost-blue mt-1">${precioVenta.toFixed(2)}</h3>
         </div>
 
-        <div className="bg-dark-card border border-dark-border p-5 rounded-xl text-center">
+        <div className="bg-dark-card border border-dark-border p-5 rounded-xl text-center shadow-sm">
           <p className="text-xs font-semibold text-emerald-400 uppercase tracking-wider">Ganancia Unit.</p>
           <h3 className="text-2xl font-bold text-emerald-400 mt-1">${ganancia.toFixed(2)}</h3>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        
-        <div className="bg-dark-card border border-dark-border rounded-xl p-6 space-y-6">
+        <div className="bg-dark-card border border-dark-border rounded-xl p-6 space-y-6 shadow-sm">
           <div>
             <h3 className="text-xs font-bold text-gris-calido uppercase tracking-wider mb-2">Descripción del Producto</h3>
             <p className="text-sm text-white bg-dark-bg p-4 rounded-lg border border-dark-border">
@@ -165,7 +169,7 @@ export default function ProductoDetalle() {
               <div>
                 <p className="text-xs text-gris-calido/70">Unidades disponibles principales</p>
                 <span className={`inline-block mt-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${
-                  producto.min_stock && producto.stock <= producto.min_stock 
+                  producto.min_stock && (producto.stock || 0) <= producto.min_stock 
                     ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' 
                     : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
                 }`}>
@@ -208,7 +212,7 @@ export default function ProductoDetalle() {
           </div>
         </div>
 
-        <div className="bg-dark-card border border-dark-border rounded-xl p-6 space-y-6 flex flex-col justify-between">
+        <div className="bg-dark-card border border-dark-border rounded-xl p-6 space-y-6 flex flex-col justify-between shadow-sm">
           <div>
             <h3 className="text-sm font-bold text-white mb-4">Resumen de Rentabilidad</h3>
             
@@ -219,9 +223,11 @@ export default function ProductoDetalle() {
               </div>
 
               <div className="w-full bg-dark-bg h-3 rounded-full overflow-hidden border border-dark-border">
-                <div 
-                  className="bg-emerald-400 h-full rounded-full transition-all duration-500"
-                  style={{ width: `${Math.min(Number(margenUtilidad), 100)}%` }}
+                <motion.div 
+                  initial={{ width: 0 }}
+                  animate={{ width: `${Math.min(Number(margenUtilidad), 100)}%` }}
+                  transition={{ duration: 0.6 }}
+                  className="bg-emerald-400 h-full rounded-full"
                 />
               </div>
             </div>
@@ -232,19 +238,17 @@ export default function ProductoDetalle() {
             <p>Este margen representa el porcentaje de beneficio directo calculado sobre el precio de compra original del producto.</p>
           </div>
         </div>
-
       </div>
 
       <ProductoModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        initialData={producto}
+        initialData={producto as ProductoData}
         onSuccess={() => {
           setIsModalOpen(false);
-          setRefreshTrigger(prev => prev + 1); // Recarga los datos automáticamente
+          setRefreshTrigger(prev => prev + 1);
         }}
       />
-
-    </div>
+    </motion.div>
   );
 }

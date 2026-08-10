@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { motion } from 'motion/react';
 import axios from 'axios';
 import { 
   HiPlus, 
@@ -12,7 +13,6 @@ import {
 } from 'react-icons/hi2';
 import ProductoModal from './ProductoModal';
 
-// 1. Interfaz adaptada al backend
 export interface Producto {
   id: number;
   name: string;
@@ -54,7 +54,6 @@ export default function ProductosScreen() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Producto | null>(null);
 
-  // 2. Fetch de productos desde Laravel
   useEffect(() => {
     const fetchProductos = async () => {
       setIsLoading(true);
@@ -85,7 +84,6 @@ export default function ProductosScreen() {
     setIsModalOpen(true);
   };
 
-  // 3. Eliminar producto conectado a la API (Soft Delete)
   const handleDeleteProduct = async (id: number) => {
     if (window.confirm('¿Deseas enviar este producto a eliminados?')) {
       try {
@@ -93,7 +91,7 @@ export default function ProductosScreen() {
         await axios.delete(`https://api.yahirdev.dev/api/products/${id}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
-        setRefreshTrigger(prev => prev + 1); // Refresca la tabla
+        setRefreshTrigger(prev => prev + 1);
       } catch (error) {
         alert(extraerMensajeError(error));
       }
@@ -107,8 +105,12 @@ export default function ProductosScreen() {
   );
 
   return (
-    <div className="p-6 bg-dark-bg text-gris-calido min-h-screen space-y-6">
-      
+    <motion.div 
+      initial={{ opacity: 0, y: 15 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+      className="p-6 bg-dark-bg text-gris-calido min-h-screen space-y-6"
+    >
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-white tracking-wide">Catálogo de Productos</h1>
@@ -116,27 +118,31 @@ export default function ProductosScreen() {
         </div>
         
         <div className="flex items-center gap-3">
-          <button 
+          <motion.button 
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
             type="button"
             onClick={() => navigate('/Productos-Eliminados')}
             className="flex items-center justify-center gap-2 border border-dark-border bg-dark-card text-gris-calido hover:text-white px-3.5 py-2.5 rounded-lg text-sm font-medium transition-colors"
           >
             <HiOutlineArchiveBox className="text-lg" />
             Ver Eliminados
-          </button>
+          </motion.button>
           
-          <button 
+          <motion.button 
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
             type="button"
             onClick={handleOpenNewModal}
             className="flex items-center justify-center gap-2 bg-neo-mint text-dark-bg font-semibold px-4 py-2.5 rounded-lg hover:bg-neo-mint/90 transition-all shadow-lg shadow-neo-mint/10"
           >
             <HiPlus className="text-lg font-bold" />
             Nuevo Producto
-          </button>
+          </motion.button>
         </div>
       </div>
 
-      <div className="bg-dark-card border border-dark-border p-4 rounded-xl flex items-center gap-3">
+      <div className="bg-dark-card border border-dark-border p-4 rounded-xl flex items-center gap-3 shadow-sm">
         <HiOutlineMagnifyingGlass className="text-xl text-gris-calido/60" />
         <input 
           type="text"
@@ -167,7 +173,7 @@ export default function ProductosScreen() {
                   <td colSpan={7} className="py-8 text-center text-neo-mint">Cargando catálogo de productos...</td>
                 </tr>
               ) : productosFiltrados.length > 0 ? (
-                productosFiltrados.map((prod) => {
+                productosFiltrados.map((prod, index) => {
                   const pCompra = parseFloat(String(prod.purchase_price || 0));
                   const pVenta = parseFloat(String(prod.price || 0));
                   const ganancia = (pVenta - pCompra).toFixed(2);
@@ -177,8 +183,13 @@ export default function ProductosScreen() {
                   const isStockBajo = currentStock <= minStock;
 
                   return (
-                    <tr key={prod.id} className="hover:bg-dark-bg/40 transition-colors">
-                      
+                    <motion.tr 
+                      key={prod.id} 
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ duration: 0.2, delay: index * 0.05 }}
+                      className="hover:bg-dark-bg/40 transition-colors"
+                    >
                       <td className="py-4 px-6 font-medium text-white flex items-center gap-3">
                         <div className="p-2 bg-neo-mint/10 rounded-lg text-neo-mint shrink-0">
                           <HiOutlineCube className="text-lg" />
@@ -219,36 +230,41 @@ export default function ProductosScreen() {
 
                       <td className="py-4 px-6 text-right">
                         <div className="flex items-center justify-end gap-2">
-                          <button 
+                          <motion.button 
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
                             type="button"
                             title="Ver detalle"
                             onClick={() => navigate(`/Productos/${prod.id}`)}
                             className="p-1.5 hover:bg-dark-bg rounded-md text-ghost-blue hover:text-white transition-colors"
                           >
                             <HiOutlineEye className="text-lg" />
-                          </button>
+                          </motion.button>
 
-                          <button 
+                          <motion.button 
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
                             type="button"
                             title="Editar"
                             onClick={() => handleOpenEditModal(prod)}
                             className="p-1.5 hover:bg-dark-bg rounded-md text-amber-400 hover:text-amber-300 transition-colors"
                           >
                             <HiOutlinePencilSquare className="text-lg" />
-                          </button>
+                          </motion.button>
 
-                          <button 
+                          <motion.button 
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
                             type="button"
                             title="Eliminar"
                             onClick={() => handleDeleteProduct(prod.id!)}
                             className="p-1.5 hover:bg-dark-bg rounded-md text-rose-500 hover:text-rose-400 transition-colors"
                           >
                             <HiOutlineTrash className="text-lg" />
-                          </button>
+                          </motion.button>
                         </div>
                       </td>
-
-                    </tr>
+                    </motion.tr>
                   );
                 })
               ) : (
@@ -269,9 +285,9 @@ export default function ProductosScreen() {
         initialData={selectedProduct}
         onSuccess={() => {
           setIsModalOpen(false);
-          setRefreshTrigger(prev => prev + 1); // Dispara la recarga de productos
+          setRefreshTrigger(prev => prev + 1);
         }}
       />
-    </div>
+    </motion.div>
   );
 }

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { motion } from 'motion/react';
 import axios from 'axios';
 import { 
   HiPlus, 
@@ -13,7 +14,6 @@ import {
 } from 'react-icons/hi2';
 import ClienteModal, { type ClienteData } from './ClienteModal';
 
-// Creamos esta interfaz para que TypeScript sepa qué datos llegan del backend y no marque error de "any"
 interface ApiCliente {
   id: number;
   first_name?: string;
@@ -35,7 +35,6 @@ export default function ClientesScreen() {
 
   const token = localStorage.getItem('token'); 
 
-  // --- TRAER CLIENTES DE LA API ---
   const fetchClientes = useCallback(async () => {
     try {
       const response = await axios.get('https://api.yahirdev.dev/api/clients', {
@@ -44,7 +43,6 @@ export default function ClientesScreen() {
       
       const apiData = response.data.data || response.data;
       
-      // Usamos la interfaz ApiCliente en lugar de (c: any)
       const clientesFormateados: ClienteData[] = apiData.map((c: ApiCliente) => ({
         id: c.id,
         nombre: c.first_name || '',
@@ -63,8 +61,6 @@ export default function ClientesScreen() {
   }, [token]); 
 
   useEffect(() => {
-    // biome-ignore all: Ignora reglas estrictas del linter para el fetch inicial
-    // eslint-disable-next-line
     fetchClientes();
   }, [fetchClientes]);
 
@@ -78,7 +74,6 @@ export default function ClientesScreen() {
     setIsModalOpen(true);
   };
 
-  // --- CREAR O EDITAR CLIENTE EN LA API ---
   const handleSaveCliente = async (data: ClienteData) => {
     try {
       const payload = {
@@ -90,7 +85,6 @@ export default function ClientesScreen() {
         neighborhood: data.colonia,
         credit_limit: data.credit_limit || 0
       };
-      
 
       if (data.id) {
         await axios.put(`https://api.yahirdev.dev/api/clients/${data.id}`, payload, {
@@ -104,10 +98,8 @@ export default function ClientesScreen() {
       
       setIsModalOpen(false);
       fetchClientes();
-} catch (error) {
+    } catch (error) {
       console.error("Error completo:", error);
-      
-      // Comprobamos si el error viene de Axios de forma segura para TypeScript
       if (axios.isAxiosError(error)) {
         if (error.response && error.response.data) {
           alert("Error del servidor: " + JSON.stringify(error.response.data));
@@ -120,7 +112,6 @@ export default function ClientesScreen() {
     }
   };
 
-  // --- ELIMINAR CLIENTE ---
   const handleDeleteCliente = async (id: number) => {
     if (confirm('¿Estás seguro de eliminar este cliente?')) {
       try {
@@ -142,24 +133,30 @@ export default function ClientesScreen() {
   });
 
   return (
-    <div className="p-6 bg-dark-bg text-gris-calido min-h-screen space-y-6">
-      
+    <motion.div 
+      initial={{ opacity: 0, y: 15 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+      className="p-6 bg-dark-bg text-gris-calido min-h-screen space-y-6"
+    >
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-white tracking-wide">Gestión de Clientes</h1>
           <p className="text-sm text-gris-calido/70">Directorio, datos de contacto e historial crediticio.</p>
         </div>
         
-        <button 
+        <motion.button 
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
           onClick={handleOpenNewModal}
           className="flex items-center justify-center gap-2 bg-neo-mint text-dark-bg font-semibold px-4 py-2.5 rounded-lg hover:bg-neo-mint/90 transition-all shadow-lg shadow-neo-mint/10"
         >
           <HiPlus className="text-lg font-bold" />
           Nuevo Cliente
-        </button>
+        </motion.button>
       </div>
 
-      <div className="bg-dark-card border border-dark-border p-4 rounded-xl flex items-center gap-3">
+      <div className="bg-dark-card border border-dark-border p-4 rounded-xl flex items-center gap-3 shadow-sm">
         <HiOutlineMagnifyingGlass className="text-xl text-gris-calido/60" />
         <input 
           type="text"
@@ -183,9 +180,14 @@ export default function ClientesScreen() {
             </thead>
             <tbody className="divide-y divide-dark-border">
               {clientesFiltrados.length > 0 ? (
-                clientesFiltrados.map((cli) => (
-                  <tr key={cli.id} className="hover:bg-dark-bg/40 transition-colors">
-                    
+                clientesFiltrados.map((cli, index) => (
+                  <motion.tr 
+                    key={cli.id} 
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.2, delay: index * 0.05 }}
+                    className="hover:bg-dark-bg/40 transition-colors"
+                  >
                     <td className="py-4 px-6 font-medium text-white flex items-center gap-3">
                       <div className="p-2 bg-neo-mint/10 rounded-full text-neo-mint shrink-0">
                         <HiOutlineUser className="text-lg" />
@@ -211,32 +213,38 @@ export default function ClientesScreen() {
 
                     <td className="py-4 px-6 text-right">
                       <div className="flex items-center justify-end gap-2">
-                        <button 
+                        <motion.button 
+                          whileHover={{ scale: 1.1 }}
+                          whileTap={{ scale: 0.9 }}
                           title="Ver Detalles"
                           onClick={() => navigate(`/Clientes/${cli.id}`)}
                           className="p-1.5 hover:bg-dark-bg rounded-md text-ghost-blue hover:text-white transition-colors"
                         >
                           <HiOutlineEye className="text-lg" />
-                        </button>
+                        </motion.button>
 
-                        <button 
+                        <motion.button 
+                          whileHover={{ scale: 1.1 }}
+                          whileTap={{ scale: 0.9 }}
                           title="Editar Perfil"
                           onClick={() => handleOpenEditModal(cli)}
                           className="p-1.5 hover:bg-dark-bg rounded-md text-amber-400 hover:text-amber-300 transition-colors"
                         >
                           <HiOutlinePencilSquare className="text-lg" />
-                        </button>
+                        </motion.button>
 
-                        <button 
+                        <motion.button 
+                          whileHover={{ scale: 1.1 }}
+                          whileTap={{ scale: 0.9 }}
                           title="Eliminar"
                           onClick={() => handleDeleteCliente(cli.id!)}
                           className="p-1.5 hover:bg-dark-bg rounded-md text-rose-500 hover:text-rose-400 transition-colors"
                         >
                           <HiOutlineTrash className="text-lg" />
-                        </button>
+                        </motion.button>
                       </div>
                     </td>
-                  </tr>
+                  </motion.tr>
                 ))
               ) : (
                 <tr>
@@ -256,6 +264,6 @@ export default function ClientesScreen() {
         onSave={handleSaveCliente}
         initialData={selectedCliente}
       />
-    </div>
+    </motion.div>
   );
 }
